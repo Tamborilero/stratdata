@@ -26,11 +26,28 @@
 <meta name="twitter:title" content="StratData — Estrategia · Datos · Tecnología">
 <meta name="twitter:description" content="Consultoría en estrategia, datos e IA generativa para empresas en Temuco, Chile.">
 <meta name="twitter:image" content="https://www.stratdata.cl/og-image.jpg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "StratData",
+  "url": "https://www.stratdata.cl",
+  "description": "Consultoría en estrategia, datos e IA generativa para empresas en Temuco, Chile.",
+  "founder": "Felipe Huaiquipán",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Temuco",
+    "addressRegion": "La Araucanía",
+    "addressCountry": "CL"
+  },
+  "areaServed": "Chile"
+}
+</script>
 <!-- ===== fin SEO ===== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Neue+Haas+Grotesk+Display+Pro:wght@400;500;600;700&family=Outfit:wght@200;300;400;500;600;700;800;900&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -59,6 +76,7 @@ body{
   font-weight:300;
   cursor:none;
 }
+@media(hover:none){body,a,button{cursor:auto}#cur{display:none}}
 
 /* ── CURSOR ── */
 #cur{
@@ -373,23 +391,6 @@ nav.scrolled::after{
 #servicios .section-inner{
   padding:7rem 3rem;
 }
-.srv-wrap{
-  display:flex;
-  gap:6rem;
-  align-items:flex-start;
-}
-.srv-left{
-  width:320px;
-  min-width:320px;
-  position:sticky;
-  top:100px;
-  align-self:flex-start;
-}
-.srv-right{
-  flex:1;
-}
-
-.srv-left{position:sticky;top:100px}
 
 .srv-grid{
   display:grid;grid-template-columns:1fr 1fr;
@@ -546,57 +547,6 @@ nav.scrolled::after{
   color:var(--accent);
 }
 
-/* ── PERFIL ── */
-#perfil{background:var(--white)}
-#perfil .section-inner{
-  display:grid;grid-template-columns:1fr 1fr;
-  gap:6rem;padding:7rem 3rem;
-}
-
-.pf-name{
-  font-size:clamp(2.5rem,5vw,4.5rem);
-  font-weight:800;letter-spacing:-.05em;
-  line-height:.95;margin-bottom:.5rem;
-}
-.pf-role{
-  font-family:var(--mono);font-size:.62rem;font-weight:300;
-  letter-spacing:.15em;text-transform:uppercase;
-  color:var(--accent);margin-bottom:2.5rem;
-}
-.pf-bio{
-  font-size:.92rem;font-weight:300;
-  color:var(--mid);line-height:1.9;
-  margin-bottom:3rem;
-}
-.exp-list{border-top:1px solid var(--line)}
-.exp-item{
-  display:grid;grid-template-columns:110px 1fr;
-  gap:2rem;padding:1.1rem 0;
-  border-bottom:1px solid var(--line);
-  align-items:baseline;
-}
-.exp-yr{
-  font-family:var(--mono);font-size:.56rem;font-weight:300;
-  letter-spacing:.1em;color:var(--light);
-}
-.exp-co{font-size:.9rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
-.exp-ro{font-size:.78rem;font-weight:300;color:var(--mid);margin-top:.15rem}
-
-.skill-panel{border:1px solid var(--line);padding:2.5rem}
-.sp-head{
-  font-family:var(--mono);font-size:.58rem;font-weight:300;
-  letter-spacing:.18em;text-transform:uppercase;
-  color:var(--accent);margin-bottom:1.5rem;
-  padding-bottom:1rem;border-bottom:1px solid var(--line);
-}
-.skills{display:flex;flex-wrap:wrap;gap:.5rem}
-.sk{
-  font-family:var(--mono);font-size:.6rem;font-weight:300;
-  letter-spacing:.06em;color:var(--mid);
-  border:1px solid var(--line);padding:.35rem .8rem;
-  transition:all .25s;cursor:none;
-}
-.sk:hover{background:var(--ink);color:var(--white);border-color:var(--ink)}
 
 /* ── CONTACTO ── */
 #contacto .section-inner{
@@ -640,7 +590,6 @@ nav.scrolled::after{
 .cv{font-size:.88rem;font-weight:400;color:var(--ink)}
 
 /* Form */
-.form-wrap{}
 .fg{margin-bottom:1.3rem;position:relative}
 .fl{
   display:block;font-family:var(--mono);
@@ -728,7 +677,6 @@ footer{
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
 
@@ -752,7 +700,7 @@ footer{
     <li><a href="#industrias">Industrias</a></li>
     <li><a href="#contacto">Contacto</a></li>
   </ul>
-  <button class="nav-btn" onclick="document.getElementById('contacto').scrollIntoView({behavior:'smooth'})">Hablemos</button>
+  <button class="nav-btn" aria-label="Ir a contacto" onclick="document.getElementById('contacto').scrollIntoView({behavior:'smooth'})">Hablemos</button>
 </nav>
 
 <!-- HERO -->
@@ -844,7 +792,7 @@ footer{
 
 <!-- SERVICIOS -->
 <section id="servicios" class="section-wrap">
-  <div style="padding:7rem 3rem">
+  <div class="section-inner">
 
     <!-- Header servicios — siempre arriba -->
     <div style="margin-bottom:4rem">
@@ -1001,10 +949,10 @@ footer{
       </div>
     </div>
     <div class="form-wrap reveal-up d2">
-      <div class="fg"><label class="fl">Nombre</label><input class="fi" id="sd-nombre" type="text" placeholder="Tu nombre"></div>
-      <div class="fg"><label class="fl">Email</label><input class="fi" id="sd-email" type="email" placeholder="tu@empresa.com"></div>
-      <div class="fg"><label class="fl">Empresa & contexto</label><input class="fi" id="sd-empresa" type="text" placeholder="Ej: Constructora, 50 personas, sin BI"></div>
-      <div class="fg"><label class="fl">¿Cuál es el desafío?</label><textarea class="ft" id="sd-mensaje" rows="3" placeholder="El problema que quieres resolver..."></textarea></div>
+      <div class="fg"><label class="fl" for="sd-nombre">Nombre</label><input class="fi" id="sd-nombre" type="text" placeholder="Tu nombre" autocomplete="name"></div>
+      <div class="fg"><label class="fl" for="sd-email">Email</label><input class="fi" id="sd-email" type="email" placeholder="tu@empresa.com" autocomplete="email"></div>
+      <div class="fg"><label class="fl" for="sd-empresa">Empresa & contexto</label><input class="fi" id="sd-empresa" type="text" placeholder="Ej: Constructora, 50 personas, sin BI" autocomplete="organization"></div>
+      <div class="fg"><label class="fl" for="sd-mensaje">¿Cuál es el desafío?</label><textarea class="ft" id="sd-mensaje" rows="3" placeholder="El problema que quieres resolver..."></textarea></div>
       <button type="button" class="fb" id="sd-btn"><span id="sd-btn-txt">Enviar mensaje</span></button>
     </div>
   </div>
@@ -1158,17 +1106,6 @@ document.getElementById('sd-btn').addEventListener('click', () => {
     setTimeout(() => { txt.textContent = 'Enviar mensaje'; btn.style.background = ''; }, 4000);
   });
 });
-</script>
-<script>
-if (window.netlifyIdentity) {
-  window.netlifyIdentity.on("init", user => {
-    if (!user) {
-      window.netlifyIdentity.on("login", () => {
-        document.location.href = "/admin/";
-      });
-    }
-  });
-}
 </script>
 </body>
 </html>
