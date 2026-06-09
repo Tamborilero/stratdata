@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StratData</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Neue+Haas+Grotesk+Display+Pro:wght@400;500;600;700&family=Outfit:wght@200;300;400;500;600;700;800;900&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+:root{
+  --bg:#F2F0EB;
+  --white:#FFFFFF;
+  --ink:#0C0C0B;
+  --ink2:#1A1A18;
+  --mid:#6B6B65;
+  --light:#AEADA5;
+  --line:rgba(12,12,11,.1);
+  --accent:#0052FF;
+  --accent-rgb:0,82,255;
+  --sans:'Outfit',sans-serif;
+  --mono:'DM Mono',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease2:cubic-bezier(.4,0,.2,1);
+}
+
+html,body{overflow-x:hidden}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  cursor:none;
+}
+
+/* ── CURSOR ── */
+#cur{
+  position:fixed;top:0;left:0;z-index:9999;
+  width:12px;height:12px;
+  background:var(--ink);border-radius:50%;
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  transition:width .3s var(--ease),height .3s var(--ease),background .3s,opacity .3s;
+  mix-blend-mode:difference;
+}
+#cur.big{width:80px;height:80px}
+#cur.white{background:white}
+
+/* ── LOADER ── */
+#loader{
+  position:fixed;inset:0;z-index:9000;
+  background:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:1rem;
+}
+.loader-logo{
+  font-family:var(--sans);font-size:1.4rem;font-weight:800;
+  color:white;letter-spacing:-.03em;
+  overflow:hidden;
+}
+.loader-logo span{
+  display:inline-block;
+  transform:translateY(120%);
+  animation:slideUp .7s .2s var(--ease) forwards;
+}
+.loader-logo em{color:var(--accent);font-style:normal}
+
+.loader-bar{
+  width:200px;height:1px;background:rgba(255,255,255,.1);
+  overflow:hidden;
+}
+.loader-fill{
+  height:100%;background:var(--accent);width:0%;
+  animation:fill .9s .4s var(--ease) forwards;
+}
+@keyframes fill{to{width:100%}}
+@keyframes slideUp{to{transform:translateY(0)}}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  height:60px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 3rem;
+  mix-blend-mode:normal;
+}
+nav::after{
+  content:'';position:absolute;inset:0;
+  background:rgba(242,240,235,.0);
+  backdrop-filter:blur(0px);
+  border-bottom:1px solid transparent;
+  transition:all .5s;
+  z-index:-1;
+}
+nav.scrolled::after{
+  background:rgba(242,240,235,.9);
+  backdrop-filter:blur(20px);
+  border-bottom-color:var(--line);
+}
+
+.nav-logo{
+  font-size:.9rem;font-weight:800;
+  letter-spacing:-.03em;color:var(--ink);
+  text-decoration:none;
+}
+.nav-logo b{color:var(--accent)}
+
+.nav-menu{
+  display:flex;gap:2.5rem;list-style:none;
+  position:absolute;left:50%;transform:translateX(-50%);
+}
+.nav-menu a{
+  font-size:.78rem;font-weight:500;
+  color:var(--mid);text-decoration:none;
+  letter-spacing:-.01em;
+  transition:color .2s;
+}
+.nav-menu a:hover{color:var(--ink)}
+
+.nav-btn{
+  font-family:var(--sans);font-size:.75rem;font-weight:700;
+  color:var(--white);background:var(--ink);
+  border:none;padding:.5rem 1.3rem;cursor:none;
+  transition:background .2s,transform .2s;
+}
+.nav-btn:hover{background:var(--accent);transform:scale(1.03)}
+
+/* ── HERO ── */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  padding:80px 3rem 5rem;
+  position:relative;overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+
+/* Ruido de fondo */
+#hero::before{
+  content:'';position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.5;
+}
+
+/* Número grande parallax fondo */
+.hero-bg-num{
+  position:absolute;
+  right:-2rem;top:50%;
+  transform:translateY(-50%);
+  font-size:32vw;font-weight:900;
+  letter-spacing:-.06em;
+  color:rgba(12,12,11,.04);
+  line-height:1;pointer-events:none;
+  will-change:transform;
+  z-index:0;
+  user-select:none;
+}
+
+.hero-inner{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;}
+
+.hero-title-group{
+  display:flex;flex-direction:column;gap:.8rem;
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:.6rem;
+  font-family:var(--mono);font-size:.6rem;font-weight:300;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--mid);margin-bottom:1rem;
+}
+.hero-tag .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 8px rgba(var(--accent-rgb),.6);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.6}}
+
+.hero-title{
+  font-size:clamp(4rem,8vw,9rem);
+  font-weight:800;line-height:.95;
+  letter-spacing:-.05em;
+  overflow:hidden;
+}
+
+.title-line{
+  display:block;overflow:hidden;
+  padding-bottom:.05em;
+}
+.title-word{
+  display:inline-block;
+  transform:translateY(110%);
+  opacity:0;
+  will-change:transform,opacity;
+}
+.title-word.accent{color:var(--accent)}
+.title-word.light{color:var(--light);font-weight:200;font-style:italic}
+
+.hero-bottom{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:4rem;align-items:end;
+  margin-top:5rem;
+  padding-top:3rem;
+  border-top:1px solid var(--line);
+}
+
+.hero-desc{
+  font-size:1.05rem;font-weight:300;
+  color:var(--mid);line-height:1.85;
+  max-width:440px;
+}
+.hero-desc strong{color:var(--ink);font-weight:500}
+
+.hero-actions{
+  display:flex;gap:1rem;align-items:center;
+  justify-content:flex-end;
+}
+
+.btn-main{
+  font-family:var(--sans);font-size:.82rem;font-weight:700;
+  color:var(--white);background:var(--ink);
+  border:none;padding:1rem 2.2rem;cursor:none;
+  text-decoration:none;display:inline-block;
+  position:relative;overflow:hidden;
+  transition:color .3s;
+}
+.btn-main::before{
+  content:'';position:absolute;inset:0;
+  background:var(--accent);
+  transform:translateX(-101%);
+  transition:transform .4s var(--ease);
+}
+.btn-main:hover::before{transform:translateX(0)}
+.btn-main span{position:relative;z-index:1}
+
+.btn-link{
+  font-family:var(--mono);font-size:.65rem;font-weight:300;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--mid);text-decoration:none;
+  display:flex;align-items:center;gap:.5rem;
+  transition:color .2s;
+}
+.btn-link::after{
+  content:'↗';
+  transition:transform .2s;
+  display:inline-block;
+}
+.btn-link:hover{color:var(--ink)}
+.btn-link:hover::after{transform:translate(3px,-3px)}
+
+/* Hero scroll indicator */
+.hero-scroll{
+  position:absolute;right:3rem;bottom:5rem;
+  writing-mode:vertical-rl;
+  font-family:var(--mono);font-size:.55rem;font-weight:300;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--light);
+  display:flex;align-items:center;gap:.8rem;
+  animation:fadeIn 1s 2s both;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.hero-scroll::after{
+  content:'';width:1px;height:60px;
+  background:var(--light);
+  animation:lineGrow 1.5s 2.2s var(--ease) both;
+  transform-origin:top;
+}
+@keyframes lineGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* ── MARQUEE ── */
+.marquee-wrap{
+  border-bottom:1px solid var(--line);
+  overflow:hidden;padding:1.2rem 0;
+  background:var(--ink);
+}
+.marquee-track{
+  display:flex;gap:0;
+  animation:marquee 20s linear infinite;
+  white-space:nowrap;width:max-content;
+}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee-item{
+  font-family:var(--mono);font-size:.7rem;font-weight:300;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);
+  padding:0 3rem;
+  display:flex;align-items:center;gap:3rem;
+}
+.marquee-item::after{
+  content:'·';color:var(--accent);font-size:1rem;
+}
+
+/* ── SECCIÓN BASE ── */
+.section-wrap{border-bottom:1px solid var(--line)}
+.section-inner{padding:7rem 3rem}
+
+.s-eyebrow{
+  font-family:var(--mono);font-size:.6rem;font-weight:300;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:1.5rem;
+  display:flex;align-items:center;gap:.8rem;
+}
+.s-eyebrow::before{
+  content:'';width:28px;height:1px;background:var(--accent);
+}
+
+.s-title{
+  font-size:clamp(2.2rem,4vw,4rem);
+  font-weight:800;letter-spacing:-.04em;
+  line-height:1.05;color:var(--ink);
+}
+.s-title em{
+  font-style:italic;font-weight:200;color:var(--mid);
+}
+
+/* ── COUNTER ── */
+.count-wrap{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:var(--line);
+  margin-top:5rem;
+}
+.count-card{
+  background:var(--bg);padding:3rem 2.5rem;
+  position:relative;overflow:hidden;
+  transition:background .3s;
+}
+.count-card:hover{background:var(--white)}
+
+.count-val{
+  font-size:4rem;font-weight:800;
+  letter-spacing:-.05em;line-height:1;
+  color:var(--ink);margin-bottom:.5rem;
+}
+.count-val .suffix{color:var(--accent)}
+.count-label{
+  font-family:var(--mono);font-size:.58rem;font-weight:300;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mid);
+}
+.count-bar{
+  position:absolute;bottom:0;left:0;
+  height:2px;background:var(--accent);
+  width:0%;transition:width 1.5s var(--ease);
+}
+.count-card.counted .count-bar{width:100%}
+
+/* ── SERVICIOS ── */
+#servicios .section-inner{
+  padding:7rem 3rem;
+}
+.srv-wrap{
+  display:flex;
+  gap:6rem;
+  align-items:flex-start;
+}
+.srv-left{
+  width:320px;
+  min-width:320px;
+  position:sticky;
+  top:100px;
+  align-self:flex-start;
+}
+.srv-right{
+  flex:1;
+}
+
+.srv-left{position:sticky;top:100px}
+
+.srv-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:1px;background:var(--line);
+}
+@media(max-width:640px){.srv-grid{grid-template-columns:1fr}}
+
+.srv-card{
+  background:var(--bg);
+  padding:2.5rem;
+  position:relative;overflow:hidden;
+  transition:background .3s,transform .4s var(--ease);
+  cursor:none;
+}
+.srv-card::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:2px;
+  background:var(--accent);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .4s var(--ease);
+}
+.srv-card:hover{background:var(--white)}
+.srv-card:hover::after{transform:scaleX(1)}
+
+/* Hover 3D tilt */
+.srv-card{transform-style:preserve-3d;perspective:800px}
+
+.srv-n{
+  font-family:var(--mono);font-size:.55rem;font-weight:300;
+  letter-spacing:.15em;color:var(--light);
+  margin-bottom:1.5rem;
+}
+.srv-icon{
+  width:38px;height:38px;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--mid);margin-bottom:1.5rem;
+  transition:border-color .3s,color .3s;
+}
+.srv-card:hover .srv-icon{border-color:var(--accent);color:var(--accent)}
+.srv-title{
+  font-size:.98rem;font-weight:700;
+  color:var(--ink);margin-bottom:.6rem;
+  letter-spacing:-.01em;line-height:1.3;
+}
+.srv-body{
+  font-size:.78rem;font-weight:300;
+  color:var(--mid);line-height:1.8;
+}
+.srv-tools{
+  margin-top:1.2rem;display:flex;flex-wrap:wrap;gap:.35rem;
+}
+.tool{
+  font-family:var(--mono);font-size:.5rem;font-weight:300;
+  letter-spacing:.07em;text-transform:uppercase;
+  color:var(--light);border:1px solid var(--line);
+  padding:.2rem .5rem;
+  transition:all .3s;
+}
+.srv-card:hover .tool{border-color:rgba(var(--accent-rgb),.25);color:var(--accent)}
+
+/* ── MANIFIESTO ── */
+#manifiesto{
+  background:var(--ink);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.manif-inner{
+  padding:8rem 3rem;
+}
+
+.manif-headline{
+  font-size:clamp(3rem,6vw,7rem);
+  font-weight:800;letter-spacing:-.05em;
+  line-height:.95;color:var(--white);
+  max-width:900px;
+  margin-bottom:6rem;
+}
+.manif-headline .hl{color:var(--accent)}
+.manif-headline .dim{color:rgba(255,255,255,.2);font-weight:200;font-style:italic}
+
+.manif-cols{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:rgba(255,255,255,.06);
+}
+.manif-col{
+  background:var(--ink);
+  padding:3rem 2.5rem;
+  transition:background .3s;
+}
+.manif-col:hover{background:#111110}
+
+.mc-num{
+  font-size:4.5rem;font-weight:800;
+  letter-spacing:-.05em;
+  color:rgba(255,255,255,.06);
+  line-height:1;margin-bottom:2rem;
+}
+.mc-title{
+  font-size:1rem;font-weight:700;
+  color:var(--white);margin-bottom:.8rem;
+  letter-spacing:-.01em;line-height:1.3;
+}
+.mc-body{
+  font-size:.82rem;font-weight:300;
+  color:rgba(255,255,255,.4);line-height:1.85;
+}
+
+/* ── INDUSTRIAS ── */
+#industrias .section-inner{padding:7rem 3rem}
+
+.ind-rows{margin-top:4rem}
+.ind-row{
+  display:grid;grid-template-columns:80px 1fr auto;
+  align-items:center;gap:3rem;
+  padding:2.2rem 0;
+  border-bottom:1px solid var(--line);
+  cursor:none;
+  transition:padding .3s var(--ease);
+  overflow:hidden;
+  position:relative;
+}
+.ind-row::before{
+  content:'';position:absolute;left:0;bottom:0;top:0;
+  width:3px;background:var(--accent);
+  transform:scaleY(0);transform-origin:bottom;
+  transition:transform .4s var(--ease);
+}
+.ind-row:hover{padding:2.2rem 1.5rem}
+.ind-row:hover::before{transform:scaleY(1)}
+
+.ind-n{
+  font-family:var(--mono);font-size:.58rem;font-weight:300;
+  letter-spacing:.15em;color:var(--light);
+}
+.ind-name{
+  font-size:1.4rem;font-weight:800;
+  letter-spacing:-.03em;color:var(--ink);
+}
+.ind-sub{
+  font-size:.8rem;font-weight:300;
+  color:var(--mid);margin-top:.2rem;
+}
+.ind-chips{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  font-family:var(--mono);font-size:.5rem;font-weight:300;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--mid);
+  border:1px solid var(--line);
+  padding:.22rem .55rem;
+  transition:all .3s;
+}
+.ind-row:hover .chip{
+  border-color:rgba(var(--accent-rgb),.3);
+  color:var(--accent);
+}
+
+/* ── PERFIL ── */
+#perfil{background:var(--white)}
+#perfil .section-inner{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:6rem;padding:7rem 3rem;
+}
+
+.pf-name{
+  font-size:clamp(2.5rem,5vw,4.5rem);
+  font-weight:800;letter-spacing:-.05em;
+  line-height:.95;margin-bottom:.5rem;
+}
+.pf-role{
+  font-family:var(--mono);font-size:.62rem;font-weight:300;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:2.5rem;
+}
+.pf-bio{
+  font-size:.92rem;font-weight:300;
+  color:var(--mid);line-height:1.9;
+  margin-bottom:3rem;
+}
+.exp-list{border-top:1px solid var(--line)}
+.exp-item{
+  display:grid;grid-template-columns:110px 1fr;
+  gap:2rem;padding:1.1rem 0;
+  border-bottom:1px solid var(--line);
+  align-items:baseline;
+}
+.exp-yr{
+  font-family:var(--mono);font-size:.56rem;font-weight:300;
+  letter-spacing:.1em;color:var(--light);
+}
+.exp-co{font-size:.9rem;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.exp-ro{font-size:.78rem;font-weight:300;color:var(--mid);margin-top:.15rem}
+
+.skill-panel{border:1px solid var(--line);padding:2.5rem}
+.sp-head{
+  font-family:var(--mono);font-size:.58rem;font-weight:300;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:1.5rem;
+  padding-bottom:1rem;border-bottom:1px solid var(--line);
+}
+.skills{display:flex;flex-wrap:wrap;gap:.5rem}
+.sk{
+  font-family:var(--mono);font-size:.6rem;font-weight:300;
+  letter-spacing:.06em;color:var(--mid);
+  border:1px solid var(--line);padding:.35rem .8rem;
+  transition:all .25s;cursor:none;
+}
+.sk:hover{background:var(--ink);color:var(--white);border-color:var(--ink)}
+
+/* ── CONTACTO ── */
+#contacto .section-inner{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:6rem;padding:7rem 3rem;
+}
+
+.ct-head{
+  font-size:clamp(2.5rem,5vw,5rem);
+  font-weight:800;letter-spacing:-.05em;
+  line-height:.95;margin-bottom:2rem;
+}
+.ct-head span{
+  color:var(--accent);
+  position:relative;display:inline-block;
+}
+.ct-head span::after{
+  content:'';position:absolute;
+  bottom:-4px;left:0;right:0;height:3px;
+  background:var(--accent);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .6s var(--ease);
+}
+.ct-head span.revealed::after{transform:scaleX(1)}
+
+.ct-sub{
+  font-size:.95rem;font-weight:300;
+  color:var(--mid);line-height:1.85;
+  margin-bottom:2.5rem;max-width:380px;
+}
+.ct-data{border-top:1px solid var(--line)}
+.cr{
+  display:flex;align-items:baseline;gap:1.5rem;
+  padding:.85rem 0;border-bottom:1px solid var(--line);
+}
+.cl{
+  font-family:var(--mono);font-size:.53rem;font-weight:300;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--light);min-width:80px;
+}
+.cv{font-size:.88rem;font-weight:400;color:var(--ink)}
+
+/* Form */
+.form-wrap{}
+.fg{margin-bottom:1.3rem;position:relative}
+.fl{
+  display:block;font-family:var(--mono);
+  font-size:.53rem;font-weight:300;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--light);margin-bottom:.5rem;
+}
+.fi,.ft{
+  width:100%;background:transparent;
+  border:none;border-bottom:1.5px solid var(--line);
+  color:var(--ink);font-family:var(--sans);
+  font-size:.9rem;font-weight:300;
+  padding:.65rem 0;outline:none;
+  transition:border-color .3s;
+}
+.fi::placeholder,.ft::placeholder{color:rgba(12,12,11,.25)}
+.fi:focus,.ft:focus{border-color:var(--accent)}
+.ft{resize:none;min-height:80px}
+
+.fb{
+  width:100%;font-family:var(--sans);
+  font-size:.85rem;font-weight:700;
+  color:var(--white);background:var(--ink);
+  border:none;padding:1rem;cursor:none;
+  margin-top:.5rem;
+  position:relative;overflow:hidden;
+  transition:color .3s;
+}
+.fb::before{
+  content:'';position:absolute;inset:0;
+  background:var(--accent);
+  transform:translateX(-101%);
+  transition:transform .4s var(--ease);
+}
+.fb:hover::before{transform:translateX(0)}
+.fb span{position:relative;z-index:1}
+
+/* ── FOOTER ── */
+footer{
+  border-top:1px solid var(--line);
+  padding:1.8rem 3rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ft-brand{
+  font-size:.85rem;font-weight:800;
+  letter-spacing:-.02em;
+}
+.ft-brand b{color:var(--accent)}
+.ft-copy{
+  font-family:var(--mono);font-size:.5rem;font-weight:300;
+  letter-spacing:.1em;color:var(--light);
+}
+
+/* ── SPLIT TEXT / SCROLL REVEAL ── */
+.reveal-up{
+  opacity:0;transform:translateY(40px);
+  transition:opacity .8s var(--ease),transform .8s var(--ease);
+}
+.reveal-up.in{opacity:1;transform:none}
+.d1{transition-delay:.1s}
+.d2{transition-delay:.2s}
+.d3{transition-delay:.3s}
+.d4{transition-delay:.4s}
+
+@media(max-width:960px){
+  .hero-tag{font-size:.52rem;letter-spacing:.08em;margin-bottom:.8rem}
+  .hero-title-group{margin-top:auto}
+  
+  nav{padding:0 1.5rem}
+  .nav-menu{display:none}
+  #hero{padding:0 1.5rem 4rem}
+  .hero-bottom{grid-template-columns:1fr}
+  .hero-actions{justify-content:flex-start}
+  .count-wrap{grid-template-columns:1fr 1fr}
+  #servicios .section-inner{grid-template-columns:1fr}
+  .srv-grid{grid-template-columns:1fr}
+  .srv-left{position:static}
+  .manif-cols{grid-template-columns:1fr}
+  .ind-row{grid-template-columns:50px 1fr;gap:1rem}
+  .ind-chips{display:none}
+  #perfil .section-inner,.ct-grid,#contacto .section-inner{grid-template-columns:1fr;gap:3rem}
+  .section-inner{padding:4rem 1.5rem}
+  footer{flex-direction:column;gap:.7rem;text-align:center}
+  .hero-bg-num{font-size:60vw;right:-5vw}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-logo">
+    <span>Strat<em>Data</em></span>
+  </div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- CURSOR -->
+<div id="cur"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="nav-logo">Strat<b>Data</b></a>
+  <ul class="nav-menu">
+    <li><a href="#servicios">Servicios</a></li>
+    <li><a href="#manifiesto">Nosotros</a></li>
+    <li><a href="#industrias">Industrias</a></li>
+    <li><a href="#contacto">Contacto</a></li>
+  </ul>
+  <button class="nav-btn" onclick="document.getElementById('contacto').scrollIntoView({behavior:'smooth'})">Hablemos</button>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg-num" id="bgNum">SD</div>
+
+  <div class="hero-inner">
+    <div class="hero-title-group">
+      <div class="hero-tag">
+        <span class="dot"></span>
+        Temuco · Chile · Gestión · Datos · IA Generativa
+      </div>
+      <h1 class="hero-title">
+      <span class="title-line">
+        <span class="title-word" id="w1">Tu negocio</span>
+      </span>
+      <span class="title-line">
+        <span class="title-word accent" id="w2">ya tiene</span>
+        <span class="title-word" id="w3">&nbsp;los datos.</span>
+      </span>
+      <span class="title-line">
+        <span class="title-word light" id="w4">Nosotros los</span>
+        <span class="title-word light" id="w5">&nbsp;hacemos hablar.</span>
+      </span>
+    </h1>
+    </div>
+
+    <div class="hero-bottom">
+      <p class="hero-desc">
+        StratData convierte información dispersa en <strong>ventaja competitiva real</strong>. Digitalización, automatización e inteligencia de datos con criterio de negocio — no de TI.
+      </p>
+      <div class="hero-actions">
+        <a href="#servicios" class="btn-main"><span>Ver servicios</span></a>
+        <a href="#contacto" class="btn-link">Diagnóstico gratis</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-scroll">Scroll</div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <div class="marquee-item">Power BI</div>
+    <div class="marquee-item">Automatización</div>
+    <div class="marquee-item">Control de gestión</div>
+    <div class="marquee-item">Digitalización</div>
+    <div class="marquee-item">IA Generativa</div>
+    <div class="marquee-item">SharePoint</div>
+    <div class="marquee-item">OCR</div>
+    <div class="marquee-item">ISO 9001</div>
+    <div class="marquee-item">Power BI</div>
+    <div class="marquee-item">Automatización</div>
+    <div class="marquee-item">Control de gestión</div>
+    <div class="marquee-item">Digitalización</div>
+    <div class="marquee-item">IA Generativa</div>
+    <div class="marquee-item">SharePoint</div>
+    <div class="marquee-item">OCR</div>
+    <div class="marquee-item">ISO 9001</div>
+  </div>
+</div>
+
+<!-- CONTADORES -->
+<section class="section-wrap">
+  <div class="count-wrap">
+    <div class="count-card reveal-up">
+      <div class="count-val"><span class="count-num" data-target="9">0</span><span class="suffix">+</span></div>
+      <div class="count-label">Años en industria real</div>
+      <div class="count-bar"></div>
+    </div>
+    <div class="count-card reveal-up d1">
+      <div class="count-val"><span class="count-num" data-target="5">0</span></div>
+      <div class="count-label">Sectores atendidos</div>
+      <div class="count-bar"></div>
+    </div>
+    <div class="count-card reveal-up d2">
+      <div class="count-val"><span class="count-num" data-target="100">0</span><span class="suffix">%</span></div>
+      <div class="count-label">Trato directo</div>
+      <div class="count-bar"></div>
+    </div>
+    <div class="count-card reveal-up d3">
+      <div class="count-val"><span class="count-num" data-target="0">∞</span></div>
+      <div class="count-label">Datos que puedes explotar</div>
+      <div class="count-bar"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICIOS -->
+<section id="servicios" class="section-wrap">
+  <div style="padding:7rem 3rem">
+
+    <!-- Header servicios — siempre arriba -->
+    <div style="margin-bottom:4rem">
+      <div class="s-eyebrow reveal-up">Servicios</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:2rem">
+        <h2 class="s-title reveal-up d1">Lo que construimos juntos.</h2>
+        <p style="font-size:.9rem;font-weight:300;color:var(--mid);line-height:1.8;max-width:380px" class="reveal-up d2">Cada solución parte del problema real. La tecnología es el medio, no el fin.</p>
+      </div>
+    </div>
+
+    <!-- Grid servicios -->
+    <div class="srv-grid">
+      <div class="srv-card reveal-up d1" data-tilt>
+        <div class="srv-n">01</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="srv-title">Central de Datos & BI</div>
+        <div class="srv-body">Toda la información de tu negocio centralizada. Dashboards en tiempo real que muestran qué está pasando sin esperar reportes manuales.</div>
+        <div class="srv-tools"><span class="tool">Power BI</span><span class="tool">Power Query</span></div>
+      </div>
+      <div class="srv-card reveal-up d2" data-tilt>
+        <div class="srv-n">02</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+        <div class="srv-title">Automatización IA & OCR</div>
+        <div class="srv-body">Elimina tareas repetitivas. Extracción automática desde documentos, flujos sin intervención humana, alertas inteligentes.</div>
+        <div class="srv-tools"><span class="tool">Power Automate</span><span class="tool">IA Generativa</span></div>
+      </div>
+      <div class="srv-card reveal-up d1" data-tilt>
+        <div class="srv-n">03</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+        <div class="srv-title">Digitalización</div>
+        <div class="srv-body">Transforma papel y Excel desordenado en flujos digitales que tu equipo adopta porque los ayuda, no los complica.</div>
+        <div class="srv-tools"><span class="tool">Microsoft 365</span><span class="tool">SharePoint</span></div>
+      </div>
+      <div class="srv-card reveal-up d2" data-tilt>
+        <div class="srv-n">04</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg></div>
+        <div class="srv-title">Control de Gestión</div>
+        <div class="srv-body">KPIs, presupuestos y metas alineados con tu estrategia. Informes que hablan el idioma de la dirección, no del área de TI.</div>
+        <div class="srv-tools"><span class="tool">KPIs</span><span class="tool">ISO 9001</span></div>
+      </div>
+      <div class="srv-card reveal-up d1" data-tilt>
+        <div class="srv-n">05</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <div class="srv-title">Presencia Digital</div>
+        <div class="srv-body">Sitios web y aplicaciones con la calidad que tu negocio merece. Desde landing pages hasta sistemas de gestión.</div>
+        <div class="srv-tools"><span class="tool">Web</span><span class="tool">Apps</span></div>
+      </div>
+      <div class="srv-card reveal-up d2" data-tilt>
+        <div class="srv-n">06</div>
+        <div class="srv-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>
+        <div class="srv-title">Consultoría Estratégica</div>
+        <div class="srv-body">Diagnóstico de madurez digital, hoja de ruta y acompañamiento. Experiencia real en industria, no teoría académica.</div>
+        <div class="srv-tools"><span class="tool">Diagnóstico</span><span class="tool">Roadmap</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MANIFIESTO -->
+<section id="manifiesto">
+  <div class="manif-inner">
+    <h2 class="manif-headline reveal-up">
+      No vendemos<br>
+      <span class="hl">tecnología.</span><br>
+      <span class="dim">Resolvemos problemas.</span>
+    </h2>
+    <div class="manif-cols">
+      <div class="manif-col reveal-up d1">
+        <div class="mc-num">01</div>
+        <div class="mc-title">El problema primero, la tecnología después.</div>
+        <p class="mc-body">Cada proyecto parte del problema real. Si la solución óptima es simple, te lo decimos. No vendemos complejidad para justificar el precio.</p>
+      </div>
+      <div class="manif-col reveal-up d2">
+        <div class="mc-num">02</div>
+        <div class="mc-title">Más de 9 años en industria real.</div>
+        <p class="mc-body">Trabajamos dentro de empresas de construcción, transporte y manufactura. Formación en ingeniería industrial con experiencia internacional. Sabemos lo que pasa en la operación, no solo en la sala de reuniones.</p>
+      </div>
+      <div class="manif-col reveal-up d2">
+        <div class="mc-num">03</div>
+        <div class="mc-title">IA Generativa como parte del método.</div>
+        <p class="mc-body">Trabajamos con las herramientas más avanzadas disponibles hoy. La IA Generativa acelera el diagnóstico, el diseño y la implementación — lo que antes tomaba semanas, hoy toma días.</p>
+      </div>
+      <div class="manif-col reveal-up d3">
+        <div class="mc-num">04</div>
+        <div class="mc-title">Trato directo, sin intermediarios.</div>
+        <p class="mc-body">Hablas con quien hace el trabajo. Sin account managers. La persona que diagnostica el problema es la misma que lo implementa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INDUSTRIAS -->
+<section id="industrias" class="section-wrap">
+  <div class="section-inner">
+    <div class="s-eyebrow reveal-up">Industrias</div>
+    <h2 class="s-title reveal-up d1">Dónde<br><em>operamos.</em></h2>
+    <div class="ind-rows">
+      <div class="ind-row reveal-up d1">
+        <div class="ind-n">01</div>
+        <div>
+          <div class="ind-name">Construcción & Inmobiliaria</div>
+          <div class="ind-sub">Control de obra, presupuestos, gestión de contratos</div>
+        </div>
+        <div class="ind-chips">
+          <span class="chip">Control obra</span><span class="chip">Presupuestos</span><span class="chip">Documentos</span>
+        </div>
+      </div>
+      <div class="ind-row reveal-up d2">
+        <div class="ind-n">02</div>
+        <div>
+          <div class="ind-name">Transporte & Maquinaria</div>
+          <div class="ind-sub">Flota, mantenimiento, eficiencia operacional</div>
+        </div>
+        <div class="ind-chips">
+          <span class="chip">Flota</span><span class="chip">Mantenimiento</span><span class="chip">Operaciones</span>
+        </div>
+      </div>
+      <div class="ind-row reveal-up d3">
+        <div class="ind-n">03</div>
+        <div>
+          <div class="ind-name">Manufactura & Industria</div>
+          <div class="ind-sub">Procesos, KPIs, certificaciones de calidad</div>
+        </div>
+        <div class="ind-chips">
+          <span class="chip">Procesos</span><span class="chip">KPIs</span><span class="chip">ISO 9001</span>
+        </div>
+      </div>
+      <div class="ind-row reveal-up d4">
+        <div class="ind-n">04</div>
+        <div>
+          <div class="ind-name">Pymes en crecimiento</div>
+          <div class="ind-sub">Digitalización, control de gestión, automatización</div>
+        </div>
+        <div class="ind-chips">
+          <span class="chip">Digitalización</span><span class="chip">Gestión</span><span class="chip">Automatización</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- CONTACTO -->
+<section id="contacto" class="section-wrap">
+  <div class="section-inner">
+    <div class="reveal-up">
+      <h2 class="ct-head">¿Listo para<br>tomar <span id="ctSpan">mejores</span><br>decisiones?</h2>
+      <p class="ct-sub">30 minutos para identificar las oportunidades reales en tu operación. Sin costo, sin compromiso.</p>
+      <div class="ct-data">
+        <div class="cr"><div class="cl">Consultor</div><div class="cv">Felipe Huaiquipán</div></div>
+        <div class="cr"><div class="cl">Email</div><div class="cv">fa.huaiquipan@gmail.com</div></div>
+        <div class="cr"><div class="cl">Ubicación</div><div class="cv">Temuco, Chile</div></div>
+      </div>
+    </div>
+    <div class="form-wrap reveal-up d2">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" id="sd-nombre" type="text" placeholder="Tu nombre"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="sd-email" type="email" placeholder="tu@empresa.com"></div>
+      <div class="fg"><label class="fl">Empresa & contexto</label><input class="fi" id="sd-empresa" type="text" placeholder="Ej: Constructora, 50 personas, sin BI"></div>
+      <div class="fg"><label class="fl">¿Cuál es el desafío?</label><textarea class="ft" id="sd-mensaje" rows="3" placeholder="El problema que quieres resolver..."></textarea></div>
+      <button type="button" class="fb" id="sd-btn"><span id="sd-btn-txt">Enviar mensaje</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-brand">Strat<b>Data</b></div>
+  <div class="ft-copy">© 2026 · Estrategia · Datos · Tecnología · Temuco, Chile</div>
+</footer>
+
+<script>
+// ── LOADER ──
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const loader = document.getElementById('loader');
+    loader.style.transition = 'opacity .8s, transform .8s';
+    loader.style.opacity = '0';
+    loader.style.transform = 'translateY(-100%)';
+    setTimeout(() => loader.remove(), 900);
+
+    // Animate hero words
+    const words = ['w1','w2','w3','w4','w5'];
+    words.forEach((id, i) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      setTimeout(() => {
+        el.style.transition = `transform .9s cubic-bezier(.16,1,.3,1), opacity .9s`;
+        el.style.transform = 'translateY(0)';
+        el.style.opacity = '1';
+      }, 200 + i * 120);
+    });
+  }, 1200);
+});
+
+// ── CURSOR ──
+const cur = document.getElementById('cur');
+let cx = 0, cy = 0;
+document.addEventListener('mousemove', e => {
+  cx = e.clientX; cy = e.clientY;
+  cur.style.left = cx + 'px';
+  cur.style.top = cy + 'px';
+});
+document.querySelectorAll('a,button,[data-tilt]').forEach(el => {
+  el.addEventListener('mouseenter', () => cur.classList.add('big'));
+  el.addEventListener('mouseleave', () => cur.classList.remove('big'));
+});
+
+// ── NAV ──
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', scrollY > 40);
+});
+
+// ── PARALLAX BG NUM ──
+const bgNum = document.getElementById('bgNum');
+window.addEventListener('scroll', () => {
+  bgNum.style.transform = `translateY(calc(-50% + ${scrollY * .15}px))`;
+});
+
+// ── REVEAL ──
+const obs = new IntersectionObserver(es => {
+  es.forEach(e => { if(e.isIntersecting) e.target.classList.add('in'); });
+}, {threshold: 0.1});
+document.querySelectorAll('.reveal-up').forEach(el => obs.observe(el));
+
+// ── CONTADORES ──
+function countUp(el, target, duration=1800) {
+  if(target === 0){ return; } // ∞ stays
+  let start = 0;
+  const step = ts => {
+    if(!start) start = ts;
+    const prog = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - prog, 4);
+    el.textContent = Math.round(ease * target);
+    if(prog < 1) requestAnimationFrame(step);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(step);
+}
+
+const countObs = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if(e.isIntersecting && !e.target.dataset.counted) {
+      e.target.dataset.counted = true;
+      e.target.classList.add('counted');
+      const numEl = e.target.querySelector('.count-num');
+      const target = parseInt(numEl.dataset.target);
+      if(target > 0) countUp(numEl, target);
+    }
+  });
+}, {threshold: 0.5});
+document.querySelectorAll('.count-card').forEach(el => countObs.observe(el));
+
+// ── TILT 3D en servicios ──
+document.querySelectorAll('[data-tilt]').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    card.style.transform = `perspective(800px) rotateY(${x*8}deg) rotateX(${-y*8}deg) translateZ(4px)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(800px) rotateY(0) rotateX(0) translateZ(0)';
+  });
+});
+
+// ── UNDERLINE CONTACTO ──
+const ctSpan = document.getElementById('ctSpan');
+const ctObs = new IntersectionObserver(es => {
+  es.forEach(e => { if(e.isIntersecting) e.target.classList.add('revealed'); });
+}, {threshold: 0.8});
+if(ctSpan) ctObs.observe(ctSpan);
+
+// ── EMAILJS ──
+emailjs.init('sjbuV8pEx2MUxYgQj');
+document.getElementById('sd-btn').addEventListener('click', () => {
+  const nombre  = document.getElementById('sd-nombre').value.trim();
+  const email   = document.getElementById('sd-email').value.trim();
+  const empresa = document.getElementById('sd-empresa').value.trim();
+  const mensaje = document.getElementById('sd-mensaje').value.trim();
+  const btn     = document.getElementById('sd-btn');
+  const txt     = document.getElementById('sd-btn-txt');
+
+  if(!nombre || !email || !mensaje){
+    txt.textContent = 'Completa los campos requeridos';
+    btn.style.background = '#c0392b';
+    setTimeout(() => { txt.textContent = 'Enviar mensaje'; btn.style.background = ''; }, 3000);
+    return;
+  }
+
+  txt.textContent = 'Enviando...';
+  btn.disabled = true;
+
+  emailjs.send('service_w930mwg', 'template_4knxfzk', {
+    from_name: nombre,
+    from_email: email,
+    subject:    'Contacto StratData — ' + nombre,
+    message:    'Empresa: ' + empresa + '\n\n' + mensaje
+  }).then(() => {
+    txt.textContent = '¡Mensaje enviado!';
+    btn.style.background = '#1a9e5e';
+    document.getElementById('sd-nombre').value = '';
+    document.getElementById('sd-email').value = '';
+    document.getElementById('sd-empresa').value = '';
+    document.getElementById('sd-mensaje').value = '';
+    setTimeout(() => { txt.textContent = 'Enviar mensaje'; btn.style.background = ''; btn.disabled = false; }, 4000);
+  }).catch(() => {
+    txt.textContent = 'Error al enviar. Intenta de nuevo.';
+    btn.style.background = '#c0392b';
+    btn.disabled = false;
+    setTimeout(() => { txt.textContent = 'Enviar mensaje'; btn.style.background = ''; }, 4000);
+  });
+});
+</script>
+<script>
+if (window.netlifyIdentity) {
+  window.netlifyIdentity.on("init", user => {
+    if (!user) {
+      window.netlifyIdentity.on("login", () => {
+        document.location.href = "/admin/";
+      });
+    }
+  });
+}
+</script>
+</body>
+</html>
