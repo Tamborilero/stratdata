@@ -880,6 +880,31 @@
 
 <body>
 
+  <!-- ===== Acceso por clave compartida (agregado) ===== -->
+  <div id="auth-overlay" style="position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;align-items:center;justify-content:center;">
+    <div style="width:340px;max-width:90vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 28px;box-shadow:0 20px 60px rgba(0,0,0,.6);">
+      <h2 style="margin:0 0 4px;font-size:1.05rem;color:var(--text);font-weight:600;">Dashboard Cobranza</h2>
+      <p style="margin:0 0 18px;font-size:.78rem;color:var(--muted);">Ingresa la clave de acceso</p>
+      <input id="auth-pass" type="password" placeholder="Clave" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')iniciarSesion()"
+        style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;">
+      <p id="auth-error" style="display:none;margin:10px 0 0;font-size:.74rem;color:#f87171;"></p>
+      <button onclick="iniciarSesion()" id="auth-btn"
+        style="width:100%;margin-top:16px;background:var(--accent);border:none;border-radius:8px;padding:11px;font-size:.82rem;font-weight:700;color:#0d1117;font-family:inherit;cursor:pointer;">Entrar</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal historial de cargas (agregado) ===== -->
+  <div class="modal-overlay" id="histOverlay" onclick="if(event.target===this)cerrarHistorial()" style="z-index:1200;">
+    <div style="width:520px;max-width:92vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;height:max-content;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h2 style="margin:0;font-size:1rem;color:var(--text);font-weight:600;">Historial de cargas</h2>
+        <button onclick="cerrarHistorial()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;line-height:1;cursor:pointer;">&times;</button>
+      </div>
+      <div id="hist-list" style="font-size:.8rem;color:var(--text);">Cargando…</div>
+    </div>
+  </div>
+
   <header>
     <div class="header-top">
       <div class="header-left">
@@ -907,6 +932,15 @@
         </svg>
         Compromisos de Recuperación
       </button>
+        <button onclick="abrirHistorial()"
+          style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:border-color .15s;"
+          onmouseover="this.style.borderColor='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="5"/><path d="M6 3.2V6l1.9 1.1"/>
+          </svg>
+          Historial
+        </button>
         <div class="upload-zone" id="upload-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
           <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleFileSelect(event)">
           <button class="upload-btn" onclick="document.getElementById('file-input').click()">
@@ -1922,6 +1956,7 @@
       if(file) {
         actualizarFechaDesdeArchivo(file.name);
         readFile(file);
+        subirAlServidor(file);
       }
     }
 
@@ -1934,6 +1969,7 @@
         document.getElementById('file-input').files = event.dataTransfer.files;
         actualizarFechaDesdeArchivo(file.name);
         readFile(file);
+        subirAlServidor(file);
       }
     }
 
@@ -3078,6 +3114,127 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
 
     // Inicializar sección al cargar
     renderCompromisosSection();
+
+    // ===== Acceso + guardado de cargas en servidor (agregado) =====
+    function mostrarLogin() {
+      const o = document.getElementById('auth-overlay');
+      if (o) o.style.display = 'flex';
+    }
+    function ocultarLogin() {
+      const o = document.getElementById('auth-overlay');
+      if (o) o.style.display = 'none';
+    }
+    async function verificarSesion() {
+      try {
+        const r = await fetch('/api/list');
+        if (r.status === 401) { mostrarLogin(); return; }
+        ocultarLogin();
+      } catch (e) {
+        // Sin backend (ej. abierto como archivo local): no bloquear el uso local.
+        ocultarLogin();
+      }
+    }
+    async function iniciarSesion() {
+      const pass = (document.getElementById('auth-pass') || {}).value || '';
+      const err = document.getElementById('auth-error');
+      const btn = document.getElementById('auth-btn');
+      if (err) err.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
+      try {
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        if (r.ok) {
+          ocultarLogin();
+          var i = document.getElementById('auth-pass'); if (i) i.value = '';
+        } else {
+          const j = await r.json().catch(() => ({}));
+          if (err) {
+            err.textContent = j.error === 'falta_config'
+              ? 'Falta configurar el servidor (variables de entorno).'
+              : 'Clave incorrecta.';
+            err.style.display = 'block';
+          }
+        }
+      } catch (e) {
+        if (err) { err.textContent = 'Error de conexión.'; err.style.display = 'block'; }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+      }
+    }
+
+    async function subirAlServidor(file) {
+      try {
+        const buf = await file.arrayBuffer();
+        const r = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream', 'x-filename': file.name },
+          body: buf
+        });
+        if (r.status === 401) { mostrarLogin(); return; }
+        if (!r.ok) console.warn('No se pudo guardar la carga en el servidor (HTTP ' + r.status + ').');
+      } catch (e) {
+        console.warn('Error subiendo al servidor:', e);
+      }
+    }
+
+    function abrirHistorial() {
+      const o = document.getElementById('histOverlay');
+      if (o) o.classList.add('open');
+      renderHistorial();
+    }
+    function cerrarHistorial() {
+      const o = document.getElementById('histOverlay');
+      if (o) o.classList.remove('open');
+    }
+    function _nombreCarga(pathname) {
+      return String(pathname).replace(/^cargas\//, '').replace(/-[a-z0-9]+(\.xlsx)$/i, '$1');
+    }
+    async function renderHistorial() {
+      const cont = document.getElementById('hist-list');
+      if (!cont) return;
+      cont.textContent = 'Cargando…';
+      try {
+        const r = await fetch('/api/list');
+        if (r.status === 401) { cerrarHistorial(); mostrarLogin(); return; }
+        const j = await r.json();
+        const items = j.items || [];
+        if (!items.length) { cont.textContent = 'Aún no hay cargas guardadas.'; return; }
+        cont.innerHTML = '';
+        items.forEach(function (it) {
+          const nombre = _nombreCarga(it.pathname);
+          const fecha = it.uploadedAt ? new Date(it.uploadedAt).toLocaleString('es-CL') : '';
+          const row = document.createElement('button');
+          row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;color:var(--text);font-family:inherit;font-size:.78rem;cursor:pointer;';
+          row.onmouseover = function () { row.style.borderColor = 'var(--accent)'; };
+          row.onmouseout = function () { row.style.borderColor = 'var(--border)'; };
+          row.innerHTML = '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + nombre +
+            '</span><span style="color:var(--muted);white-space:nowrap;">' + fecha + '</span>';
+          row.onclick = function () { cargarDesdeHistorial(it.pathname, nombre); };
+          cont.appendChild(row);
+        });
+      } catch (e) {
+        cont.textContent = 'Error cargando el historial.';
+      }
+    }
+    async function cargarDesdeHistorial(pathname, nombre) {
+      try {
+        const r = await fetch('/api/download?pathname=' + encodeURIComponent(pathname));
+        if (r.status === 401) { cerrarHistorial(); mostrarLogin(); return; }
+        if (!r.ok) { alert('No se pudo descargar la carga.'); return; }
+        const buf = await r.arrayBuffer();
+        const file = new File([buf], nombre, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        actualizarFechaDesdeArchivo(nombre);
+        readFile(file);
+        cerrarHistorial();
+      } catch (e) {
+        alert('Error: ' + (e.message || e));
+      }
+    }
+
+    verificarSesion();
 
   </script>
 
