@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     if (!buf.length) return res.status(400).json({ error: 'archivo_vacio' });
 
     const blob = await put(`cargas/${safeName}`, buf, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
