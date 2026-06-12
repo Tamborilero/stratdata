@@ -1218,6 +1218,10 @@
     // POSTERIOR al corte es un compromiso de pago a futuro: se EXCLUYE de la vista
     // mensual y de la tabla pivote, pero (igual que antes) sigue sumando a los
     // totales/KPIs, donas y morosos. No requiere editar código al cambiar de mes.
+    // Garantiza que RAW.rows exista al cargar (el RAW por defecto no lo trae);
+    // sin esto, initFiltros corta el script antes de inicializar lo demás (incl. COMPROMISOS).
+    if (!Array.isArray(RAW.rows)) RAW.rows = [];
+
     const ORDEN_FISCAL = ['octubre','noviembre','diciembre','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre'];
     const MESES_CAL    = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const MES_ABBR     = { octubre:'Oct', noviembre:'Nov', diciembre:'Dic', enero:'Ene', febrero:'Feb', marzo:'Mar', abril:'Abr', mayo:'May', junio:'Jun', julio:'Jul', agosto:'Ago', septiembre:'Sep' };
@@ -2028,14 +2032,20 @@
       reader.readAsArrayBuffer(file);
     }
 
-    initFiltros();
-    renderKPIs();
-    renderKPIsMes();
-    renderChartMensual();
-    renderDonut();
-    renderDonutConcepto();
-    renderDonutEmpresa();
-    renderPivot();
+    try {
+      initFiltros();
+      renderKPIs();
+      renderKPIsMes();
+      renderChartMensual();
+      renderDonut();
+      renderDonutConcepto();
+      renderDonutEmpresa();
+      renderPivot();
+    } catch (e) {
+      // Al cargar sin datos algunas vistas no se pueden pintar; no debe cortar
+      // el resto del script (COMPROMISOS, sesión, etc.). Se pinta al subir Excel.
+      console.warn('Init al cargar:', e && e.message);
+    }
 
     function abrirModalResumen() {
       renderModalResumen();
@@ -2611,38 +2621,6 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
     }
 
 
-        const MESES_ORDER = VENTANA_MESES;
-        const MES_ACTUAL = MESES_ORDER[MESES_ORDER.length - 1];
-        const MES_LABEL  = MES_ACTUAL.charAt(0).toUpperCase() + MES_ACTUAL.slice(1);
-        const fechaCorte = (document.getElementById('fecha-corte').textContent || '').replace('Corte:','').trim() || 'No definida';
-        const filtroEmp  = document.getElementById('filtroEmpresa').value || 'Todas';
-        const filtroUni  = document.getElementById('filtroUnidad').value  || 'Todas';
-
-        // Construir tabla resumen igual que renderModalResumen
-        const rows = getFilteredRows();
-        const pivotMap = {}, nombreCanon = {};
-        rows.forEach(r => {
-          const d = parseFloat(r['Deuda actual']) || 0;
-          if (d === 0) return;
-          const u = (r['Unidad de Negocio'] || 'Sin Unidad').trim();
-          const nOrig = (r['Nombre Fantasia'] || r['Razón Social'] || 'Desconocido').trim();
-          const nKey = u + '|' + nOrig.toLowerCase();
-          if (!nombreCanon[nKey]) nombreCanon[nKey] = nOrig;
-          const n = nombreCanon[nKey];
-          const m = normalizarMes(r['TD Mes']);
-          const pKey = `${u}|${n}`;
-          if (!pivotMap[pKey]) pivotMap[pKey] = { unidad: u, nombre: n, mesActual: 0, total: 0 };
-          pivotMap[pKey].total += d;
-          if (m === MES_ACTUAL) pivotMap[pKey].mesActual += d;
-        });
-        const resumenData = Object.values(pivotMap)
-          .filter(r => Math.abs(r.total) >= 1)
-          .sort((a,b) => b.total - a.total)
-          .map(r => ({ nombre: r.nombre, unidad: r.unidad, mesActual: r.mesActual, arrastre: r.total - r.mesActual, total: r.total }));
-
-        const totalMes      = resumenData.reduce((a,r) => a + r.mesActual, 0);
-        const totalArrastre = resumenData.reduce((a,r) => a + r.arrastre, 0);
-        const totalDeuda    = t.deuda;
     function abrirModalPivot() {
       renderPivot();
       const sub = document.getElementById('pivot-modal-subtitle');
