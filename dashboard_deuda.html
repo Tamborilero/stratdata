@@ -2424,13 +2424,13 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         const logoSrc = logoEl ? logoEl.src : '';
 
         // ── Tabla de compromisos de recuperación vigentes ──
-        const _accLabelPDF = { C:'Cobro directo', W:'WhatsApp', LL:'Llamada' };
+        const _accLabelPDF = { C:'Correo', W:'WhatsApp', LL:'Llamada' };
         const _compVigPDF = COMPROMISOS.filter(compromisoVigente)
           .sort((a,b) => new Date(b.registradoEn) - new Date(a.registradoEn));
         let compromisosHTML = '';
         if (_compVigPDF.length) {
           const filasComp = _compVigPDF.map(c => {
-            const acc = (c.acciones||[]).map(a => _accLabelPDF[a] || a).join(', ') || '—';
+            const acc = (c.acciones||[]).join(', ') || '—';
             const dl = c.deadline ? new Date(c.deadline+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short',year:'numeric'}) : '—';
             return '<tr>'
               + '<td style="text-align:left;">' + escHtml(c.operador||'') + '</td>'
@@ -2448,7 +2448,10 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
             + '<th style="text-align:left;">Operador</th><th style="text-align:left;">Unidad</th>'
             + '<th>Deuda</th><th>Comprometido</th><th style="text-align:left;">Acciones</th>'
             + '<th>Fecha límite</th><th style="text-align:left;">Comentario</th>'
-            + '</tr></thead><tbody>' + filasComp + '</tbody></table></div>';
+            + '</tr></thead><tbody>' + filasComp + '</tbody></table>'
+            + '<p style="font-size:.65rem;color:#9ca3af;margin-top:4px;">'
+            + Object.keys(_accLabelPDF).map(k => k + ' = ' + _accLabelPDF[k]).join(' &nbsp;·&nbsp; ')
+            + '</p></div>';
         }
 
         const htmlInforme = `<!DOCTYPE html>
@@ -2850,7 +2853,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
 
     // ── Excel de compromisos (cliente con SheetJS) ──
     function _compromisosAOA() {
-      var ACC = { C:'Cobro directo', W:'WhatsApp', LL:'Llamada' };
+      var ACC = { C:'Correo', W:'WhatsApp', LL:'Llamada' };
       var head = ['Operador','Unidad','Deuda al comprometer','Monto comprometido','Acciones','Fecha límite','Comentario','Registrado','Estado'];
       var rows = COMPROMISOS.slice()
         .sort(function(a,b){ return new Date(b.registradoEn) - new Date(a.registradoEn); })
@@ -2922,7 +2925,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         return;
       }
 
-      var ACCIONES_MAP = { C: 'Cobro directo', W: 'WhatsApp', LL: 'Llamada' };
+      var ACCIONES_MAP = { C: 'Correo', W: 'WhatsApp', LL: 'Llamada' };
       var rows = [];
       elegibles.forEach(function(m) {
         var rawKey = m.unidad + '|||' + m.nombre;
@@ -3013,6 +3016,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
 
       var rows = document.querySelectorAll('#compromisos-modal-tbody tr');
       var nuevos = [];
+      var excedidos = [];
       rows.forEach(function(tr) {
         var key = tr.getAttribute('data-key');
         if (!key) return;
@@ -3026,11 +3030,17 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         var comentario = ((tr.querySelector('[data-field="comentario"]') || {}).value || '').trim();
         if (monto || acciones.length || fecha || comentario) {
           var m = byKey[key] || {};
-          nuevos.push({ operador: m.nombre || key, unidad: m.unidad || '', deuda: m.deuda || 0,
+          var deuda = Number(m.deuda) || 0;
+          if (monto > deuda) { excedidos.push(m.nombre || key); return; }
+          nuevos.push({ operador: m.nombre || key, unidad: m.unidad || '', deuda: deuda,
             monto: monto, acciones: acciones, deadline: fecha, comentario: comentario });
         }
       });
 
+      if (excedidos.length) {
+        mostrarAviso('⚠ El monto no puede superar la deuda: ' + excedidos.slice(0, 3).join(', ') + (excedidos.length > 3 ? '…' : ''), 'err');
+        return;
+      }
       if (!nuevos.length) { cerrarModalCompromisos(); return; }
       mostrarAviso('Guardando compromisos…', 'info');
       try {
@@ -3479,7 +3489,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         </table>
       </div>
       <div class="modal-footer">
-        <span style="font-size:.72rem;color:var(--muted);">C = Cobro directo &nbsp;·&nbsp; W = WhatsApp &nbsp;·&nbsp; LL = Llamada</span>
+        <span style="font-size:.72rem;color:var(--muted);">C = Correo &nbsp;·&nbsp; W = WhatsApp &nbsp;·&nbsp; LL = Llamada</span>
       </div>
     </div>
   </div>
