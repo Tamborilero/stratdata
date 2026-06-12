@@ -3,6 +3,7 @@ import { isAuthed } from '../lib/auth.js';
 
 export default async function handler(req, res) {
   if (!isAuthed(req)) return res.status(401).json({ error: 'auth' });
+  res.setHeader('Cache-Control', 'no-store');
   try {
     const { blobs } = await list({ prefix: 'cargas/' });
     const items = blobs

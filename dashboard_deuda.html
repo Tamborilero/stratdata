@@ -3126,7 +3126,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
     }
     async function verificarSesion() {
       try {
-        const r = await fetch('/api/list');
+        const r = await fetch('/api/list', { cache: 'no-store' });
         if (r.status === 401) { mostrarLogin(); return; }
         ocultarLogin();
       } catch (e) {
@@ -3224,7 +3224,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       if (!cont) return;
       cont.textContent = 'Cargando…';
       try {
-        const r = await fetch('/api/list');
+        const r = await fetch('/api/list', { cache: 'no-store' });
         if (r.status === 401) { cerrarHistorial(); mostrarLogin(); return; }
         const j = await r.json();
         const items = j.items || [];
@@ -3248,7 +3248,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
     }
     async function cargarDesdeHistorial(pathname, nombre) {
       try {
-        const r = await fetch('/api/download?pathname=' + encodeURIComponent(pathname));
+        const r = await fetch('/api/download?pathname=' + encodeURIComponent(pathname), { cache: 'no-store' });
         if (r.status === 401) { cerrarHistorial(); mostrarLogin(); return; }
         if (!r.ok) { alert('No se pudo descargar la carga.'); return; }
         const buf = await r.arrayBuffer();
