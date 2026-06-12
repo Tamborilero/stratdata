@@ -2429,29 +2429,43 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
 
         // ── Tabla de compromisos de recuperación vigentes ──
         const _accLabelPDF = { C:'Correo', W:'WhatsApp', LL:'Llamada' };
+        const _accColPDF = { C:['#dbeafe','#1d4ed8'], W:['#d1fae5','#047857'], LL:['#fef3c7','#b45309'] };
+        const _badgePDF = (a) => {
+          const col = _accColPDF[a] || ['#eee','#555'];
+          return '<span style="display:inline-block;min-width:18px;padding:1px 5px;margin:0 1px;border-radius:5px;background:' + col[0] + ';color:' + col[1] + ';font-weight:700;font-size:.66rem;">' + a + '</span>';
+        };
         const _compVigPDF = COMPROMISOS.filter(compromisoVigente)
           .sort((a,b) => new Date(b.registradoEn) - new Date(a.registradoEn));
         let compromisosHTML = '';
         if (_compVigPDF.length) {
+          const cL = 'padding:6px 10px;border-bottom:1px solid #e5e7eb;';
+          const cR = cL + 'text-align:right;';
+          const cC = cL + 'text-align:center;';
           const filasComp = _compVigPDF.map(c => {
-            const acc = (c.acciones||[]).join(', ') || '—';
+            const acc = (c.acciones||[]).map(_badgePDF).join('') || '—';
             const dl = c.deadline ? new Date(c.deadline+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short',year:'numeric'}) : '—';
             return '<tr>'
-              + '<td style="text-align:left;">' + escHtml(c.operador||'') + '</td>'
-              + '<td style="text-align:left;">' + escHtml(c.unidad||'') + '</td>'
-              + '<td style="text-align:right;">$' + fmt(c.deuda||0) + '</td>'
-              + '<td style="text-align:right;">$' + fmt(c.monto||0) + '</td>'
-              + '<td style="text-align:left;">' + escHtml(acc) + '</td>'
-              + '<td style="text-align:right;">' + escHtml(dl) + '</td>'
-              + '<td style="text-align:left;">' + escHtml(c.comentario||'') + '</td>'
+              + '<td style="' + cL + '">' + escHtml(c.operador||'') + '</td>'
+              + '<td style="' + cL + 'color:#6b7280;font-size:.72rem;">' + escHtml(c.unidad||'') + '</td>'
+              + '<td style="' + cR + 'color:#b91c1c;">$' + fmt(c.deuda||0) + '</td>'
+              + '<td style="' + cR + 'font-weight:600;">$' + fmt(c.monto||0) + '</td>'
+              + '<td style="' + cC + 'white-space:nowrap;">' + acc + '</td>'
+              + '<td style="' + cC + '">' + escHtml(dl) + '</td>'
+              + '<td style="' + cL + 'color:#6b7280;font-size:.72rem;">' + escHtml(c.comentario||'') + '</td>'
               + '</tr>';
           }).join('');
           compromisosHTML = '<div class="sec-tabla">'
             + '<h2>Compromisos de Recuperación vigentes</h2>'
-            + '<table><thead><tr>'
-            + '<th style="text-align:left;">Operador</th><th style="text-align:left;">Unidad</th>'
-            + '<th>Deuda</th><th>Comprometido</th><th style="text-align:left;">Acciones</th>'
-            + '<th>Fecha límite</th><th style="text-align:left;">Comentario</th>'
+            + '<table>'
+            + '<colgroup><col style="width:21%"><col style="width:13%"><col style="width:12%"><col style="width:13%"><col style="width:13%"><col style="width:12%"><col style="width:16%"></colgroup>'
+            + '<thead><tr>'
+            + '<th style="text-align:left;">Operador</th>'
+            + '<th style="text-align:left;">Unidad</th>'
+            + '<th style="text-align:right;">Deuda</th>'
+            + '<th style="text-align:right;">Comprometido</th>'
+            + '<th style="text-align:center;">Acciones</th>'
+            + '<th style="text-align:center;">Fecha límite</th>'
+            + '<th style="text-align:left;">Comentario</th>'
             + '</tr></thead><tbody>' + filasComp + '</tbody></table>'
             + '<p style="font-size:.65rem;color:#9ca3af;margin-top:4px;">'
             + Object.keys(_accLabelPDF).map(k => k + ' = ' + _accLabelPDF[k]).join(' &nbsp;·&nbsp; ')
