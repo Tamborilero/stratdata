@@ -3003,7 +3003,10 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         if (monto || acciones.length || fecha || comentario) {
           var m = byKey[key] || {};
           var deuda = Number(m.deuda) || 0;
-          if (monto > deuda) { excedidos.push(m.nombre || key); return; }
+          // Comparar contra la deuda REDONDEADA (lo que se muestra). Sin esto,
+          // escribir el total mostrado (ej. 244.076) superaba por décimas la
+          // deuda real (244.075,6) y daba un falso "supera la deuda".
+          if (monto > Math.round(deuda)) { excedidos.push(m.nombre || key); return; }
           nuevos.push({ operador: m.nombre || key, unidad: m.unidad || '', deuda: deuda,
             monto: monto, acciones: acciones, deadline: fecha, comentario: comentario });
         }
