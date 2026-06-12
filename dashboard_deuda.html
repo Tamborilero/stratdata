@@ -875,6 +875,10 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Spinner del historial de cargas */
+    @keyframes hist-spin { to { transform: rotate(360deg); } }
+    .hist-spinner { display:inline-block; width:11px; height:11px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation: hist-spin .6s linear infinite; }
   </style>
 </head>
 
@@ -3366,24 +3370,57 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
           row.onmouseout = function () { row.style.borderColor = 'var(--border)'; };
           row.innerHTML = '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + nombre +
             '</span><span style="color:var(--muted);white-space:nowrap;">' + fecha + '</span>';
-          row.onclick = function () { cargarDesdeHistorial(it.pathname, nombre); };
+          row.onclick = function () { cargarDesdeHistorial(it.pathname, nombre, row); };
           cont.appendChild(row);
         });
       } catch (e) {
         cont.textContent = 'Error cargando el historial.';
       }
     }
-    async function cargarDesdeHistorial(pathname, nombre) {
+    var _histCargando = false;
+    async function cargarDesdeHistorial(pathname, nombre, rowEl) {
+      if (_histCargando) return; // evita doble clic mientras descarga
+      _histCargando = true;
+
+      // Feedback inmediato: marca la fila clickeada y atenúa/bloquea el resto.
+      var cont = document.getElementById('hist-list');
+      var originalHTML = rowEl ? rowEl.innerHTML : null;
+      if (cont) Array.prototype.forEach.call(cont.children, function (b) {
+        b.style.pointerEvents = 'none';
+        if (b !== rowEl) b.style.opacity = '0.4';
+      });
+      if (rowEl) {
+        rowEl.style.borderColor = 'var(--accent)';
+        rowEl.style.background = 'var(--accent-dim)';
+        rowEl.innerHTML =
+          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);font-weight:600;">' + nombre + '</span>' +
+          '<span style="display:flex;align-items:center;gap:6px;color:var(--accent);white-space:nowrap;font-weight:600;"><span class="hist-spinner"></span>Abriendo…</span>';
+      }
+
+      function _reset() {
+        _histCargando = false;
+        if (cont) Array.prototype.forEach.call(cont.children, function (b) {
+          b.style.opacity = '1'; b.style.pointerEvents = '';
+        });
+        if (rowEl && originalHTML !== null) {
+          rowEl.innerHTML = originalHTML;
+          rowEl.style.background = 'var(--surface2)';
+          rowEl.style.borderColor = 'var(--border)';
+        }
+      }
+
       try {
         const r = await fetch('/api/download?pathname=' + encodeURIComponent(pathname), { cache: 'no-store' });
-        if (r.status === 401) { cerrarHistorial(); mostrarLogin(); return; }
-        if (!r.ok) { alert('No se pudo descargar la carga.'); return; }
+        if (r.status === 401) { _reset(); cerrarHistorial(); mostrarLogin(); return; }
+        if (!r.ok) { _reset(); alert('No se pudo descargar la carga.'); return; }
         const buf = await r.arrayBuffer();
         const file = new File([buf], nombre, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         actualizarFechaDesdeArchivo(nombre);
         readFile(file);
+        _histCargando = false; // la lista se reconstruye al reabrir el historial
         cerrarHistorial();
       } catch (e) {
+        _reset();
         alert('Error: ' + (e.message || e));
       }
     }
