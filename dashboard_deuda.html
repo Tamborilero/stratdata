@@ -2032,20 +2032,10 @@
       reader.readAsArrayBuffer(file);
     }
 
-    try {
-      initFiltros();
-      renderKPIs();
-      renderKPIsMes();
-      renderChartMensual();
-      renderDonut();
-      renderDonutConcepto();
-      renderDonutEmpresa();
-      renderPivot();
-    } catch (e) {
-      // Al cargar sin datos algunas vistas no se pueden pintar; no debe cortar
-      // el resto del script (COMPROMISOS, sesión, etc.). Se pinta al subir Excel.
-      console.warn('Init al cargar:', e && e.message);
-    }
+    // NO se pinta nada al cargar: el dashboard queda en blanco hasta que subas
+    // un Excel (el render se hace en parseExcelToRAW tras la carga). El RAW por
+    // defecto trae datos viejos "horneados" que NO deben mostrarse como si fueran
+    // actuales. Este bloque antes corría y los mostraba — por eso se quita.
 
     function abrirModalResumen() {
       renderModalResumen();
