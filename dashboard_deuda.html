@@ -2359,36 +2359,51 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
           : filtroUni !== 'Todas' ? `, en ${filtroUni},`
           : '';
 
-        // ── Análisis local inteligente ─────────────────────────────────────
-        // Resumen ejecutivo
+        // ── Análisis local inteligente (textos del informe) ───────────────
+        const corteDate  = FECHA_CORTE || new Date();
+        const diaCorte   = corteDate.getDate();
+        const diasEnMes  = new Date(corteDate.getFullYear(), corteDate.getMonth() + 1, 0).getDate();
+        const mesEnCurso = diaCorte < diasEnMes;
+        const periodoTxt = periodoLabel().replace('Período ', 'período ');
         const nivelCobro = tasaCobro >= 95 ? 'muy alto' : tasaCobro >= 88 ? 'satisfactorio' : tasaCobro >= 80 ? 'moderado' : 'bajo';
         const alertaArrastre = pctArrastre > 60 ? 'crítica' : pctArrastre > 40 ? 'elevada' : 'controlada';
-        const resumenEjecutivo = `Al ${fechaCorte}${ctxFiltro}, la gestión de cobranza presenta una tasa de recaudación del ${tasaCobro.toFixed(1)}%, nivel ${nivelCobro}, sobre un total facturado de $${fmtK(t.facturado)}. La deuda vigente asciende a $${fmtK(totalDeuda)}, con una proporción de arrastre ${alertaArrastre} (${pctArrastre.toFixed(1)}%), lo que indica que ${pctArrastre > 50 ? 'la mayoría de la deuda proviene de períodos anteriores y requiere gestión prioritaria' : 'la deuda está mayoritariamente asociada al mes en curso'}.`;
-        const resumenMes = `En lo que respecta al mes de ${MES_LABEL}${ctxFiltroMes} se facturaron $${fmtK(mesFacturado)} y se recaudaron $${fmtK(mesPagado)}, alcanzando una tasa de cobro mensual del ${mesTasaCobro.toFixed(1)}% (nivel ${nivelCobroMes}). La deuda generada en ${MES_LABEL} y aún pendiente de cobro es de $${fmtK(totalMes)}, distribuida entre ${mesNDeudores} arrendatario${mesNDeudores !== 1 ? 's' : ''}.${mesTasaCobro < 70 ? ` Esta baja recaudación refleja que gran parte de los vencimientos de ${MES_LABEL} aún no han sido pagados, lo que es esperable si el corte fue realizado en los primeros días del mes.` : mesTasaCobro >= 90 ? ` El mes de ${MES_LABEL} muestra un comportamiento de cobranza saludable respecto al total facturado.` : ''}`;
+        const corteInfo = mesEnCurso ? ` (corte temprano, día ${diaCorte} de ${diasEnMes})` : '';
+        const cursoTag  = mesEnCurso ? ` —mes aún en curso, con corte al día ${diaCorte} de ${diasEnMes}—` : '';
+        const diaDe     = mesEnCurso ? ` de ${diasEnMes}` : '';
+
+        // Velocidad de recuperación del mes (considera los días transcurridos)
+        let velocidadMes;
+        if (mesTasaCobro >= 85)      velocidadMes = `Es un ritmo de recuperación alto: al día ${diaCorte} ya se cobró la mayor parte de los vencimientos del mes y resta una porción menor.`;
+        else if (mesTasaCobro >= 70) velocidadMes = `El ritmo de recuperación es bueno para los ${diaCorte} días transcurridos; el saldo debería cobrarse en lo que queda del mes.`;
+        else if (mesTasaCobro >= 45) velocidadMes = `La recuperación va a medio camino al día ${diaCorte}; aún hay margen para cobrar el resto antes del cierre, pero conviene reforzar la gestión.`;
+        else                         velocidadMes = `La recuperación del mes recién arranca${corteInfo}; es esperable que la tasa suba a medida que venzan los pagos, aunque debe monitorearse de cerca.`;
+
+        const resumenEjecutivo = `Al ${fechaCorte}${ctxFiltro}, la cobranza del ${periodoTxt} registra una recaudación del ${tasaCobro.toFixed(1)}% (nivel ${nivelCobro}): $${fmtK(t.pagado)} cobrados de $${fmtK(t.facturado)} facturados. Queda una deuda pendiente de $${fmtK(totalDeuda)} en ${nDeudores} arrendatario${nDeudores !== 1 ? 's' : ''}, de la cual $${fmtK(totalArrastre)} (${pctArrastre.toFixed(1)}%) es arrastre de meses anteriores y $${fmtK(totalMes)} (${pctMes.toFixed(1)}%) corresponde a ${MES_LABEL}. La proporción de arrastre es ${alertaArrastre}, por lo que ${pctArrastre > 50 ? 'el grueso de la deuda es antiguo y su recuperación debe priorizarse' : 'la deuda se concentra en el mes en curso, de gestión más reciente'}.`;
+        const resumenMes = `En ${MES_LABEL}${ctxFiltroMes}${cursoTag} se facturaron $${fmtK(mesFacturado)} y se han recaudado $${fmtK(mesPagado)} (${mesTasaCobro.toFixed(1)}%), quedando $${fmtK(totalMes)} por recuperar en ${mesNDeudores} arrendatario${mesNDeudores !== 1 ? 's' : ''}. ${velocidadMes}`;
 
         // Conclusiones basadas en datos reales
         const conclusiones = [];
-        conclusiones.push(`La tasa de cobro del período es ${tasaCobro.toFixed(1)}%, ${tasaCobro >= 90 ? 'superando' : 'sin alcanzar'} el umbral óptimo del 90%, con $${fmtK(t.pagado)} recaudados sobre $${fmtK(t.facturado)} facturados.`);
-        conclusiones.push(`La deuda total de $${fmtK(totalDeuda)} se distribuye en $${fmtK(totalMes)} del mes en curso (${pctMes.toFixed(1)}%) y $${fmtK(totalArrastre)} de arrastre (${pctArrastre.toFixed(1)}%), con ${nDeudores} arrendatarios con saldo pendiente.`);
-        if (top3[0]) conclusiones.push(`El principal deudor es ${top3[0].nombre} con $${fmtK(top3[0].total)}, representando el ${top1pct.toFixed(1)}% de la deuda total. Los 3 mayores concentran el ${top3pct.toFixed(1)}% del total adeudado.`);
-        conclusiones.push(`${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} presentan deuda de arrastre (meses anteriores), mientras que ${conSoloMes} tienen deuda únicamente del mes en curso, lo que sugiere ${conArrastre > conSoloMes ? 'un problema estructural de morosidad acumulada' : 'que la morosidad es principalmente puntual y reciente'}.`);
-        conclusiones.push(`En el mes de ${MES_LABEL}, la tasa de cobro alcanzó el ${mesTasaCobro.toFixed(1)}% ($${fmtK(mesPagado)} recaudados de $${fmtK(mesFacturado)} facturados), con $${fmtK(totalMes)} aún pendientes distribuidos en ${mesNDeudores} arrendatario${mesNDeudores !== 1 ? 's' : ''}, lo que representa el ${(totalMes / totalDeuda * 100).toFixed(1)}% de la deuda vigente total.`);
+        conclusiones.push(`La tasa de cobro del ${periodoTxt} es ${tasaCobro.toFixed(1)}%, ${tasaCobro >= 90 ? 'superando' : 'aún sin alcanzar'} el umbral óptimo del 90% ($${fmtK(t.pagado)} cobrados de $${fmtK(t.facturado)} facturados).`);
+        conclusiones.push(`La deuda pendiente de $${fmtK(totalDeuda)} se compone de $${fmtK(totalArrastre)} de arrastre (${pctArrastre.toFixed(1)}%) y $${fmtK(totalMes)} del mes en curso (${pctMes.toFixed(1)}%), repartida en ${nDeudores} arrendatario${nDeudores !== 1 ? 's' : ''}.`);
+        if (top3[0]) conclusiones.push(`El mayor deudor, ${top3[0].nombre}, acumula $${fmtK(top3[0].total)} (${top1pct.toFixed(1)}% del total) y los 3 principales concentran el ${top3pct.toFixed(1)}%: la recuperación depende en buena medida de unos pocos casos.`);
+        conclusiones.push(`${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} arrastra${conArrastre === 1 ? '' : 'n'} deuda de meses anteriores y ${conSoloMes} debe${conSoloMes === 1 ? '' : 'n'} solo el mes en curso, lo que sugiere ${conArrastre > conSoloMes ? 'una morosidad estructural acumulada que requiere acuerdos formales' : 'una morosidad mayormente puntual y reciente, más fácil de revertir'}.`);
+        conclusiones.push(`En ${MES_LABEL}, al día ${diaCorte}${diaDe}, se ha cobrado el ${mesTasaCobro.toFixed(1)}% de lo facturado del mes; resta por recuperar $${fmtK(totalMes)}, equivalente al ${pctMes.toFixed(1)}% de la deuda total.`);
 
         // Alertas
         const alertas = [];
-        if (pctArrastre > 50) alertas.push(`Concentración crítica de arrastre: el ${pctArrastre.toFixed(1)}% de la deuda total corresponde a meses anteriores, indicando morosidad crónica en ${conArrastre} arrendatarios.`);
-        else alertas.push(`El ${pctArrastre.toFixed(1)}% de arrastre se mantiene dentro de rangos manejables, aunque requiere seguimiento activo en ${conArrastre} arrendatarios.`);
-        if (top1pct > 30) alertas.push(`Riesgo de concentración: ${top3[0] ? top3[0].nombre : 'el principal deudor'} concentra el ${top1pct.toFixed(1)}% de la deuda total ($${fmtK(top3[0] ? top3[0].total : 0)}), creando una dependencia crítica en la recuperación.`);
-        else alertas.push(`La deuda está relativamente distribuida; el mayor deudor representa el ${top1pct.toFixed(1)}% del total.`);
-        if (tasaCobro < 90) alertas.push(`La tasa de cobro del ${tasaCobro.toFixed(1)}% es inferior al 90% óptimo. Se requieren acciones inmediatas para recuperar $${fmtK(totalDeuda)} pendientes y mejorar el flujo de caja.`);
-        else alertas.push(`Tasa de cobro del ${tasaCobro.toFixed(1)}% es saludable; monitorear los ${nDeudores} arrendatarios con saldo pendiente para mantener este nivel.`);
+        if (pctArrastre > 50) alertas.push(`Arrastre elevado: el ${pctArrastre.toFixed(1)}% de la deuda ($${fmtK(totalArrastre)}) proviene de meses anteriores, señal de morosidad crónica en ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''}.`);
+        else if (totalArrastre > 0) alertas.push(`El arrastre ($${fmtK(totalArrastre)}, ${pctArrastre.toFixed(1)}%) se mantiene manejable, pero exige seguimiento en los ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} que lo acumulan.`);
+        if (top1pct > 30) alertas.push(`Concentración de riesgo: ${top3[0] ? top3[0].nombre : 'el principal deudor'} representa el ${top1pct.toFixed(1)}% de la deuda ($${fmtK(top3[0] ? top3[0].total : 0)}); su no pago compromete buena parte de la recuperación.`);
+        else alertas.push(`La deuda está razonablemente distribuida: el mayor deudor pesa ${top1pct.toFixed(1)}% del total, lo que reduce el riesgo de concentración.`);
+        if (mesEnCurso && totalMes > 0) alertas.push(`Quedan $${fmtK(totalMes)} por cobrar de ${MES_LABEL} antes del cierre del mes (día ${diaCorte} de ${diasEnMes}): es la ventana donde la gestión rinde más para que no pasen a arrastre.`);
+        if (tasaCobro < 90) alertas.push(`La tasa de cobro acumulada (${tasaCobro.toFixed(1)}%) está bajo el 90% objetivo; cerrar esa brecha pasa por recuperar parte de los $${fmtK(totalDeuda)} pendientes.`);
 
         // Recomendaciones
         const recomendaciones = [];
-        recomendaciones.push(`Priorizar gestión de cobro en ${top3.map(r => r.nombre).join(', ')}, que concentran el ${top3pct.toFixed(1)}% de la deuda total. Establecer plan de pago formalizado con plazos y consecuencias definidas.`);
-        if (conArrastre > 0) recomendaciones.push(`Implementar acuerdos de pago escalonados para los ${conArrastre} arrendatarios con deuda de arrastre, distinguiendo entre deudores con voluntad de pago y casos que requieran escalamiento legal.`);
-        recomendaciones.push(`${tasaCobro < 90 ? 'Reforzar el proceso de cobranza preventiva (recordatorios 5 días antes del vencimiento) y reactiva (contacto el día 1 de mora) para llevar la tasa de cobro por sobre el 90%.' : 'Mantener el actual proceso de cobranza preventiva que ha logrado una tasa del ' + tasaCobro.toFixed(1) + '%, y documentarlo como buena práctica para replicar en otras unidades.'}`);
-        recomendaciones.push(`Realizar análisis de antigüedad de deuda mensual y generar reportes de seguimiento por arrendatario. Considerar la aplicación de intereses por mora según contrato para los casos de arrastre superior a 60 días.`);
+        if (top3[0]) recomendaciones.push(`Priorizar el cobro de ${top3.map(r => r.nombre).join(', ')}, que suman el ${top3pct.toFixed(1)}% de la deuda; conviene un plan de pago formal con montos, plazos y un responsable de seguimiento.`);
+        if (mesEnCurso && totalMes > 0) recomendaciones.push(`Aprovechar lo que resta de ${MES_LABEL} para cobrar los $${fmtK(totalMes)} pendientes del mes antes de que pasen a arrastre, partiendo por los deudores más recientes (de recuperación más probable).`);
+        if (conArrastre > 0) recomendaciones.push(`Para los ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} con arrastre, definir acuerdos de pago escalonados y separar a quienes muestran voluntad de pago de los casos que requieran escalamiento legal.`);
+        recomendaciones.push(tasaCobro < 90 ? `Reforzar la cobranza preventiva (recordatorio 5 días antes del vencimiento) y reactiva (contacto el día 1 de mora) para subir la tasa del ${tasaCobro.toFixed(1)}% hacia el 90%.` : `Mantener el proceso actual de cobranza, que sostiene una tasa del ${tasaCobro.toFixed(1)}%, y documentarlo como buena práctica para replicar en otras unidades.`);
 
         // ── Tabla HTML por unidad ──────────────────────────────────────────
         const byUnidad = {};
