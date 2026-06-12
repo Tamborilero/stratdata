@@ -1,5 +1,5 @@
 import { isAuthed } from '../lib/auth.js';
-import { leerHistorial, guardarHistorial } from '../lib/compromisos.js';
+import { leerHistorial, agregarCompromiso, borrarCompromiso } from '../lib/compromisos.js';
 
 const ACCIONES_VALIDAS = ['C', 'W', 'LL'];
 
@@ -17,10 +17,10 @@ export default async function handler(req, res) {
       if (!Array.isArray(nuevos) || !nuevos.length) {
         return res.status(400).json({ error: 'sin_datos' });
       }
-      const hist = await leerHistorial();
       const ahora = new Date().toISOString();
-      nuevos.forEach((c, i) => {
-        hist.push({
+      for (let i = 0; i < nuevos.length; i++) {
+        const c = nuevos[i];
+        await agregarCompromiso({
           id: Date.now().toString(36) + '-' + i + '-' + Math.random().toString(36).slice(2, 8),
           operador: String(c.operador || '').slice(0, 200),
           unidad: String(c.unidad || '').slice(0, 120),
@@ -33,17 +33,14 @@ export default async function handler(req, res) {
           comentario: String(c.comentario || '').slice(0, 500),
           registradoEn: ahora,
         });
-      });
-      await guardarHistorial(hist);
-      return res.status(200).json({ items: hist });
+      }
+      return res.status(200).json({ items: await leerHistorial() });
     }
 
     if (req.method === 'DELETE') {
       const id = (req.query.id || '').toString();
-      const hist = await leerHistorial();
-      const filtrado = hist.filter((c) => c.id !== id);
-      await guardarHistorial(filtrado);
-      return res.status(200).json({ items: filtrado });
+      if (id) await borrarCompromiso(id);
+      return res.status(200).json({ items: await leerHistorial() });
     }
 
     return res.status(405).json({ error: 'metodo' });
