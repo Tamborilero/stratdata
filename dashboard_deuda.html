@@ -2366,44 +2366,93 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         const mesEnCurso = diaCorte < diasEnMes;
         const periodoTxt = periodoLabel().replace('Período ', 'período ');
         const nivelCobro = tasaCobro >= 95 ? 'muy alto' : tasaCobro >= 88 ? 'satisfactorio' : tasaCobro >= 80 ? 'moderado' : 'bajo';
-        const alertaArrastre = pctArrastre > 60 ? 'crítica' : pctArrastre > 40 ? 'elevada' : 'controlada';
+        const cap = (s) => s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s;
         const corteInfo = mesEnCurso ? ` (corte temprano, día ${diaCorte} de ${diasEnMes})` : '';
         const cursoTag  = mesEnCurso ? ` —mes aún en curso, con corte al día ${diaCorte} de ${diasEnMes}—` : '';
         const diaDe     = mesEnCurso ? ` de ${diasEnMes}` : '';
 
+        // Agregados desde las filas filtradas: por mes (tendencia), concepto, unidad y recurrencia
+        const porMes = {}; MESES_ORDER.forEach(m => porMes[m] = { fact: 0, pag: 0 });
+        const porConcepto = {}, porUnidad = {}, deudorMeses = {};
+        rows.forEach(r => {
+          const mes  = normalizarMes(r['TD Mes']);
+          const fact = parseFloat(r['Facturado Total']) || 0;
+          const pag  = parseFloat(r['Pagado Total'])    || 0;
+          const deu  = parseFloat(r['Deuda actual'])    || 0;
+          if (porMes[mes]) { porMes[mes].fact += fact; porMes[mes].pag += pag; }
+          if (deu > 0) {
+            const con = normalizarConcepto(r['Concepto']);
+            porConcepto[con] = (porConcepto[con] || 0) + deu;
+          }
+          const uni = (r['Unidad de Negocio'] || 'Sin Unidad').trim();
+          if (!porUnidad[uni]) porUnidad[uni] = { fact: 0, pag: 0, deuda: 0 };
+          porUnidad[uni].fact += fact; porUnidad[uni].pag += pag; porUnidad[uni].deuda += deu;
+          if (deu > 0 && MESES_ORDER.includes(mes)) {
+            const nom = (r['Nombre Fantasia'] || r['Razón Social'] || 'Desconocido').trim();
+            const k = uni + '|' + nom.toLowerCase();
+            (deudorMeses[k] = deudorMeses[k] || new Set()).add(mes);
+          }
+        });
+
+        // Tendencia (tasa de cobro por mes ya cerrado, excluye el mes en curso)
+        const tasasMes = MESES_ORDER.filter(m => m !== MES_ACTUAL && porMes[m] && porMes[m].fact > 0)
+          .map(m => ({ mes: m, tasa: porMes[m].pag / porMes[m].fact * 100 }));
+        let tendencia = null;
+        if (tasasMes.length >= 2) {
+          const u = tasasMes[tasasMes.length - 1], p = tasasMes[tasasMes.length - 2];
+          tendencia = { ult: u, prev: p, sube: (u.tasa - p.tasa) >= 2, baja: (u.tasa - p.tasa) <= -2 };
+        }
+        // Concepto principal
+        const concArr = Object.keys(porConcepto).map(c => ({ c, d: porConcepto[c] })).filter(x => x.d > 0).sort((a, b) => b.d - a.d);
+        const topConc = concArr[0];
+        const topConcPct = (topConc && totalDeuda > 0) ? topConc.d / totalDeuda * 100 : 0;
+        // Unidad con más deuda y unidad con peor tasa
+        const uniArr = Object.keys(porUnidad).map(u => { const o = porUnidad[u]; return { u, deuda: o.deuda, tasa: o.fact > 0 ? o.pag / o.fact * 100 : null }; }).filter(x => x.deuda > 0).sort((a, b) => b.deuda - a.deuda);
+        const topUni = uniArr[0];
+        const topUniPct = (topUni && totalDeuda > 0) ? topUni.deuda / totalDeuda * 100 : 0;
+        const peorUni = uniArr.filter(x => x.tasa !== null).slice().sort((a, b) => a.tasa - b.tasa)[0];
+        // Recurrencia / antigüedad
+        const mesesArr  = Object.keys(deudorMeses).map(k => deudorMeses[k].size);
+        const cronicos  = mesesArr.filter(n => n >= 2).length;
+        const puntuales = mesesArr.filter(n => n === 1).length;
+        const maxMeses  = mesesArr.length ? Math.max.apply(null, mesesArr) : 0;
+
         // Velocidad de recuperación del mes (considera los días transcurridos)
         let velocidadMes;
-        if (mesTasaCobro >= 85)      velocidadMes = `Es un ritmo de recuperación alto: al día ${diaCorte} ya se cobró la mayor parte de los vencimientos del mes y resta una porción menor.`;
+        if (mesTasaCobro >= 85)      velocidadMes = `Es un ritmo de recuperación alto: al día ${diaCorte} ya se cobró la mayor parte de los vencimientos del mes.`;
         else if (mesTasaCobro >= 70) velocidadMes = `El ritmo de recuperación es bueno para los ${diaCorte} días transcurridos; el saldo debería cobrarse en lo que queda del mes.`;
-        else if (mesTasaCobro >= 45) velocidadMes = `La recuperación va a medio camino al día ${diaCorte}; aún hay margen para cobrar el resto antes del cierre, pero conviene reforzar la gestión.`;
-        else                         velocidadMes = `La recuperación del mes recién arranca${corteInfo}; es esperable que la tasa suba a medida que venzan los pagos, aunque debe monitorearse de cerca.`;
+        else if (mesTasaCobro >= 45) velocidadMes = `La recuperación va a medio camino al día ${diaCorte}; hay margen para cobrar el resto antes del cierre, pero conviene reforzar la gestión.`;
+        else                         velocidadMes = `La recuperación del mes recién arranca${corteInfo}; es esperable que suba a medida que venzan los pagos, aunque debe monitorearse.`;
 
-        const resumenEjecutivo = `Al ${fechaCorte}${ctxFiltro}, la cobranza del ${periodoTxt} registra una recaudación del ${tasaCobro.toFixed(1)}% (nivel ${nivelCobro}): $${fmtK(t.pagado)} cobrados de $${fmtK(t.facturado)} facturados. Queda una deuda pendiente de $${fmtK(totalDeuda)} en ${nDeudores} arrendatario${nDeudores !== 1 ? 's' : ''}, de la cual $${fmtK(totalArrastre)} (${pctArrastre.toFixed(1)}%) es arrastre de meses anteriores y $${fmtK(totalMes)} (${pctMes.toFixed(1)}%) corresponde a ${MES_LABEL}. La proporción de arrastre es ${alertaArrastre}, por lo que ${pctArrastre > 50 ? 'el grueso de la deuda es antiguo y su recuperación debe priorizarse' : 'la deuda se concentra en el mes en curso, de gestión más reciente'}.`;
-        const resumenMes = `En ${MES_LABEL}${ctxFiltroMes}${cursoTag} se facturaron $${fmtK(mesFacturado)} y se han recaudado $${fmtK(mesPagado)} (${mesTasaCobro.toFixed(1)}%), quedando $${fmtK(totalMes)} por recuperar en ${mesNDeudores} arrendatario${mesNDeudores !== 1 ? 's' : ''}. ${velocidadMes}`;
+        // ── Textos ─────────────────────────────────────────────────────────
+        const resumenEjecutivo = `Al ${fechaCorte}${ctxFiltro}, la cobranza del ${periodoTxt} mantiene una deuda pendiente de $${fmtK(totalDeuda)} en ${nDeudores} arrendatario${nDeudores !== 1 ? 's' : ''}, con una recaudación acumulada del ${tasaCobro.toFixed(1)}% (nivel ${nivelCobro}). Esa deuda se reparte entre $${fmtK(totalArrastre)} (${pctArrastre.toFixed(1)}%) de arrastre de meses anteriores y $${fmtK(totalMes)} (${pctMes.toFixed(1)}%) del mes en curso. ${pctArrastre > 50 ? 'El predominio de deuda antigua obliga a enfocar la gestión en recuperarla antes de que escale.' : 'El predominio de deuda del mes en curso apunta a una morosidad reciente, más manejable si se actúa pronto.'}`;
+        const resumenMes = `En ${MES_LABEL}${ctxFiltroMes}${cursoTag} se facturaron $${fmtK(mesFacturado)} y se han recaudado $${fmtK(mesPagado)} (${mesTasaCobro.toFixed(1)}%), quedando $${fmtK(totalMes)} por cobrar en ${mesNDeudores} arrendatario${mesNDeudores !== 1 ? 's' : ''}. ${velocidadMes}`;
 
-        // Conclusiones basadas en datos reales
+        // Conclusiones: cada una mira un ángulo distinto (no repiten cifras del resumen)
         const conclusiones = [];
-        conclusiones.push(`La tasa de cobro del ${periodoTxt} es ${tasaCobro.toFixed(1)}%, ${tasaCobro >= 90 ? 'superando' : 'aún sin alcanzar'} el umbral óptimo del 90% ($${fmtK(t.pagado)} cobrados de $${fmtK(t.facturado)} facturados).`);
-        conclusiones.push(`La deuda pendiente de $${fmtK(totalDeuda)} se compone de $${fmtK(totalArrastre)} de arrastre (${pctArrastre.toFixed(1)}%) y $${fmtK(totalMes)} del mes en curso (${pctMes.toFixed(1)}%), repartida en ${nDeudores} arrendatario${nDeudores !== 1 ? 's' : ''}.`);
-        if (top3[0]) conclusiones.push(`El mayor deudor, ${top3[0].nombre}, acumula $${fmtK(top3[0].total)} (${top1pct.toFixed(1)}% del total) y los 3 principales concentran el ${top3pct.toFixed(1)}%: la recuperación depende en buena medida de unos pocos casos.`);
-        conclusiones.push(`${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} arrastra${conArrastre === 1 ? '' : 'n'} deuda de meses anteriores y ${conSoloMes} debe${conSoloMes === 1 ? '' : 'n'} solo el mes en curso, lo que sugiere ${conArrastre > conSoloMes ? 'una morosidad estructural acumulada que requiere acuerdos formales' : 'una morosidad mayormente puntual y reciente, más fácil de revertir'}.`);
-        conclusiones.push(`En ${MES_LABEL}, al día ${diaCorte}${diaDe}, se ha cobrado el ${mesTasaCobro.toFixed(1)}% de lo facturado del mes; resta por recuperar $${fmtK(totalMes)}, equivalente al ${pctMes.toFixed(1)}% de la deuda total.`);
+        if (tendencia) conclusiones.push(`Tendencia: la tasa de cobro mensual ${tendencia.sube ? 'viene mejorando' : tendencia.baja ? 'se está deteriorando' : 'se mantiene estable'}, pasando de ${tendencia.prev.tasa.toFixed(1)}% en ${cap(tendencia.prev.mes)} a ${tendencia.ult.tasa.toFixed(1)}% en ${cap(tendencia.ult.mes)}${tendencia.baja ? ', lo que anticipa más deuda si no se corrige' : tendencia.sube ? ', señal de que la gestión va rindiendo' : ''}.`);
+        if (topConc) conclusiones.push(`Por tipo de cargo, ${cap(topConc.c)} es lo que más se adeuda: $${fmtK(topConc.d)} (${topConcPct.toFixed(1)}% de la deuda)${concArr[1] ? `, seguido de ${cap(concArr[1].c)} ($${fmtK(concArr[1].d)})` : ''}. Conviene revisar la gestión específica de ese concepto.`);
+        if (topUni && uniArr.length > 1) conclusiones.push(`Por unidad, ${topUni.u} concentra el ${topUniPct.toFixed(1)}% de la deuda ($${fmtK(topUni.deuda)}), el foco de la morosidad.${(peorUni && peorUni.u !== topUni.u) ? ` La de peor recaudación es ${peorUni.u} (${peorUni.tasa.toFixed(1)}%).` : ''}`);
+        if (cronicos + puntuales > 0) conclusiones.push(`Antigüedad: ${cronicos} arrendatario${cronicos !== 1 ? 's' : ''} arrastra${cronicos === 1 ? '' : 'n'} deuda en 2 o más meses (morosidad recurrente${maxMeses >= 3 ? `, hasta ${maxMeses} meses en el peor caso` : ''}) frente a ${puntuales} con deuda de un solo mes; la deuda recurrente es la de mayor riesgo de incobrabilidad.`);
+        if (top3[0]) conclusiones.push(`Concentración: los 3 mayores deudores (${top3.map(r => r.nombre).join(', ')}) suman el ${top3pct.toFixed(1)}% de la deuda, por lo que la recuperación depende de unos pocos casos clave.`);
+        conclusiones.push(`En ${MES_LABEL}, al día ${diaCorte}${diaDe}, se ha cobrado el ${mesTasaCobro.toFixed(1)}% de lo facturado del mes; resta por cobrar $${fmtK(totalMes)}, equivalente al ${pctMes.toFixed(1)}% de la deuda total.`);
 
-        // Alertas
+        // Alertas: solo riesgos reales según los datos
         const alertas = [];
-        if (pctArrastre > 50) alertas.push(`Arrastre elevado: el ${pctArrastre.toFixed(1)}% de la deuda ($${fmtK(totalArrastre)}) proviene de meses anteriores, señal de morosidad crónica en ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''}.`);
-        else if (totalArrastre > 0) alertas.push(`El arrastre ($${fmtK(totalArrastre)}, ${pctArrastre.toFixed(1)}%) se mantiene manejable, pero exige seguimiento en los ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} que lo acumulan.`);
-        if (top1pct > 30) alertas.push(`Concentración de riesgo: ${top3[0] ? top3[0].nombre : 'el principal deudor'} representa el ${top1pct.toFixed(1)}% de la deuda ($${fmtK(top3[0] ? top3[0].total : 0)}); su no pago compromete buena parte de la recuperación.`);
-        else alertas.push(`La deuda está razonablemente distribuida: el mayor deudor pesa ${top1pct.toFixed(1)}% del total, lo que reduce el riesgo de concentración.`);
-        if (mesEnCurso && totalMes > 0) alertas.push(`Quedan $${fmtK(totalMes)} por cobrar de ${MES_LABEL} antes del cierre del mes (día ${diaCorte} de ${diasEnMes}): es la ventana donde la gestión rinde más para que no pasen a arrastre.`);
-        if (tasaCobro < 90) alertas.push(`La tasa de cobro acumulada (${tasaCobro.toFixed(1)}%) está bajo el 90% objetivo; cerrar esa brecha pasa por recuperar parte de los $${fmtK(totalDeuda)} pendientes.`);
+        if (tendencia && tendencia.baja) alertas.push(`La cobranza viene cayendo (de ${tendencia.prev.tasa.toFixed(1)}% a ${tendencia.ult.tasa.toFixed(1)}%): de no revertirse, la deuda seguirá creciendo mes a mes.`);
+        if (cronicos > 0) alertas.push(`Morosidad recurrente: ${cronicos} arrendatario${cronicos !== 1 ? 's' : ''} acumula${cronicos === 1 ? '' : 'n'} deuda en varios meses; mientras más se prolonga, menor es la probabilidad de cobro.`);
+        if (top1pct > 30) alertas.push(`Concentración de riesgo: ${top3[0] ? top3[0].nombre : 'el principal deudor'} representa el ${top1pct.toFixed(1)}% de la deuda ($${fmtK(top3[0] ? top3[0].total : 0)}); su impago compromete buena parte de la recuperación.`);
+        if (mesEnCurso && totalMes > 0) alertas.push(`Quedan $${fmtK(totalMes)} por cobrar de ${MES_LABEL} antes del cierre (día ${diaCorte} de ${diasEnMes}): si no se cobran ahora, pasarán a engrosar el arrastre.`);
+        if (tasaCobro < 80) alertas.push(`La recaudación acumulada (${tasaCobro.toFixed(1)}%) está bajo el umbral aceptable; recuperar parte de los $${fmtK(totalDeuda)} pendientes es clave para el flujo de caja.`);
+        if (!alertas.length) alertas.push(`Sin alertas críticas: la cartera se mantiene bajo control con una recaudación del ${tasaCobro.toFixed(1)}%.`);
 
-        // Recomendaciones
+        // Recomendaciones: acciones ligadas a los hallazgos anteriores
         const recomendaciones = [];
-        if (top3[0]) recomendaciones.push(`Priorizar el cobro de ${top3.map(r => r.nombre).join(', ')}, que suman el ${top3pct.toFixed(1)}% de la deuda; conviene un plan de pago formal con montos, plazos y un responsable de seguimiento.`);
-        if (mesEnCurso && totalMes > 0) recomendaciones.push(`Aprovechar lo que resta de ${MES_LABEL} para cobrar los $${fmtK(totalMes)} pendientes del mes antes de que pasen a arrastre, partiendo por los deudores más recientes (de recuperación más probable).`);
-        if (conArrastre > 0) recomendaciones.push(`Para los ${conArrastre} arrendatario${conArrastre !== 1 ? 's' : ''} con arrastre, definir acuerdos de pago escalonados y separar a quienes muestran voluntad de pago de los casos que requieran escalamiento legal.`);
-        recomendaciones.push(tasaCobro < 90 ? `Reforzar la cobranza preventiva (recordatorio 5 días antes del vencimiento) y reactiva (contacto el día 1 de mora) para subir la tasa del ${tasaCobro.toFixed(1)}% hacia el 90%.` : `Mantener el proceso actual de cobranza, que sostiene una tasa del ${tasaCobro.toFixed(1)}%, y documentarlo como buena práctica para replicar en otras unidades.`);
+        if (top3[0]) recomendaciones.push(`Priorizar el cobro de ${top3.map(r => r.nombre).join(', ')} (${top3pct.toFixed(1)}% de la deuda) con un plan de pago formal: montos, plazos y un responsable de seguimiento.`);
+        if (cronicos > 0) recomendaciones.push(`Tratar aparte ${cronicos === 1 ? 'al deudor recurrente' : 'a los ' + cronicos + ' deudores recurrentes'}: acuerdos de pago escalonados y, donde no haya voluntad de pago, evaluar escalamiento legal antes de que la deuda envejezca más.`);
+        if (topConc) recomendaciones.push(`Revisar la gestión de ${cap(topConc.c)} (${topConcPct.toFixed(1)}% de la deuda): validar emisión, notificación y medios de pago de ese cargo, que es el que más se acumula.`);
+        if (mesEnCurso && totalMes > 0) recomendaciones.push(`Usar lo que resta de ${MES_LABEL} para cobrar los $${fmtK(totalMes)} pendientes del mes —partiendo por los deudores recientes— antes de que pasen a arrastre.`);
+        recomendaciones.push(tasaCobro < 90 ? `Reforzar la cobranza preventiva (aviso 5 días antes del vencimiento) y reactiva (contacto el día 1 de mora) para llevar la tasa del ${tasaCobro.toFixed(1)}% hacia el 90%.` : `Mantener el proceso actual de cobranza, que sostiene una tasa del ${tasaCobro.toFixed(1)}%, y documentarlo como buena práctica para replicar en otras unidades.`);
 
         // ── Tabla HTML por unidad ──────────────────────────────────────────
         const byUnidad = {};
