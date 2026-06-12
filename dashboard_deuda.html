@@ -879,6 +879,14 @@
     /* Spinner del historial de cargas */
     @keyframes hist-spin { to { transform: rotate(360deg); } }
     .hist-spinner { display:inline-block; width:11px; height:11px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation: hist-spin .6s linear infinite; }
+
+    /* Menús desplegables de la barra de acciones */
+    .dd { position: relative; display: inline-flex; }
+    .dd-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 210px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); display: none; z-index: 1500; }
+    .dd.open .dd-menu { display: block; }
+    .dd-menu button { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; background: none; border: none; border-radius: 7px; padding: 9px 11px; font-family: inherit; font-size: .74rem; font-weight: 600; color: var(--text); cursor: pointer; letter-spacing: .3px; white-space: nowrap; text-transform: none; }
+    .dd-menu button:hover { background: var(--surface2); }
+    .dd-menu button svg { color: var(--muted); flex-shrink: 0; }
   </style>
 </head>
 
@@ -924,35 +932,56 @@
           <p id="fecha-corte" style="color:var(--accent);font-size:.75rem;font-weight:500;margin-top:3px;display:none;">—</p>
         </div>
       </div>
-      <div class="header-right" style="display:flex; align-items:center; gap:16px;">
-      <button onclick="abrirModalCompromisos()"
-        style="display:flex;align-items:center;gap:6px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:#34d399;font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
-        onmouseover="this.style.background='rgba(52,211,153,0.16)';this.style.borderColor='rgba(52,211,153,0.5)'"
-        onmouseout="this.style.background='rgba(52,211,153,0.08)';this.style.borderColor='rgba(52,211,153,0.25)'">
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-          <circle cx="6" cy="6" r="5"/>
-          <line x1="6" y1="3.5" x2="6" y2="8.5"/>
-          <line x1="3.5" y1="6" x2="8.5" y2="6"/>
-        </svg>
-        Compromisos de Recuperación
-      </button>
-        <button onclick="abrirHistorial()"
-          style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:border-color .15s;"
-          onmouseover="this.style.borderColor='var(--accent)'"
-          onmouseout="this.style.borderColor='var(--border)'">
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="6" cy="6" r="5"/><path d="M6 3.2V6l1.9 1.1"/>
-          </svg>
-          Historial
-        </button>
-        <div class="upload-zone" id="upload-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+      <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+        <!-- Cargar Excel + Historial (botón partido) -->
+        <div class="dd">
           <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleFileSelect(event)">
-          <button class="upload-btn" onclick="document.getElementById('file-input').click()">
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <path d="M6 2v8M3 5l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Cargar Excel
+          <div class="upload-zone" id="upload-zone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" style="gap:0;">
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()" style="border-radius:8px 0 0 8px;">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M3 5l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Cargar Excel
+            </button>
+            <button class="upload-btn" onclick="toggleDd(this)" title="Más opciones" style="border-radius:0 8px 8px 0;border-left:0;padding:6px 9px;">▾</button>
+          </div>
+          <div class="dd-menu">
+            <button onclick="closeDd(); abrirHistorial()">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="5"/><path d="M6 3.2V6l1.9 1.1"/></svg>
+              Historial de cargas
+            </button>
+          </div>
+        </div>
+
+        <!-- Compromisos -->
+        <button onclick="abrirModalCompromisos()"
+          style="display:flex;align-items:center;gap:6px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:#34d399;font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
+          onmouseover="this.style.background='rgba(52,211,153,0.16)';this.style.borderColor='rgba(52,211,153,0.5)'"
+          onmouseout="this.style.background='rgba(52,211,153,0.08)';this.style.borderColor='rgba(52,211,153,0.25)'">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="6" cy="6" r="5"/><line x1="6" y1="3.5" x2="6" y2="8.5"/><line x1="3.5" y1="6" x2="8.5" y2="6"/></svg>
+          Compromisos
+        </button>
+
+        <!-- Reportes (menú) -->
+        <div class="dd">
+          <button onclick="toggleDd(this)"
+            style="display:flex;align-items:center;gap:6px;background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--accent);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
+            onmouseover="this.style.background='rgba(240,165,0,0.16)'" onmouseout="this.style.background='rgba(240,165,0,0.08)'">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2.5h8M2 6h8M2 9.5h5"/></svg>
+            Reportes ▾
           </button>
+          <div class="dd-menu">
+            <button onclick="closeDd(); abrirModalEstadisticas()">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="5" width="2" height="6" rx=".5"/><rect x="5" y="3" width="2" height="8" rx=".5"/><rect x="9" y="1" width="2" height="10" rx=".5"/></svg>
+              Estadísticas
+            </button>
+            <button onclick="closeDd(); abrirModalPivot()">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.4"/><line x1="3" y1="4" x2="9" y2="4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="3" y1="6" x2="9" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Ver Deuda Mensual
+            </button>
+            <button id="btn-pdf" onclick="closeDd(); generarInformePDF()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/></svg>
+              <span id="btn-pdf-label">Generar Informe PDF</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -970,39 +999,8 @@
         </select>
       </div>
       <div class="filter-spacer"></div>
-      <button onclick="abrirModalEstadisticas()"
-        style="display:flex;align-items:center;gap:6px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:#a78bfa;font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
-        onmouseover="this.style.background='rgba(139,92,246,0.16)';this.style.borderColor='rgba(139,92,246,0.5)'"
-        onmouseout="this.style.background='rgba(139,92,246,0.08)';this.style.borderColor='rgba(139,92,246,0.25)'">
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-          <rect x="1" y="5" width="2" height="6" rx=".5"/><rect x="5" y="3" width="2" height="8" rx=".5"/><rect x="9" y="1" width="2" height="10" rx=".5"/>
-        </svg>
-        Estadísticas
-      </button>
-      <button onclick="abrirModalPivot()"
-        style="display:flex;align-items:center;gap:6px;background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--accent);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
-        onmouseover="this.style.background='rgba(240,165,0,0.16)';this.style.borderColor='rgba(240,165,0,0.5)'"
-        onmouseout="this.style.background='rgba(240,165,0,0.08)';this.style.borderColor='rgba(240,165,0,0.25)'">
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-          <rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.4" />
-          <line x1="3" y1="4" x2="9" y2="4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-          <line x1="3" y1="6" x2="9" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-          <line x1="3" y1="8" x2="7" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-        Ver Deuda Mensual
-      </button>
-      <button onclick="generarInformePDF()" id="btn-pdf"
-        style="display:flex;align-items:center;gap:6px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--danger);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;transition:background .15s,border-color .15s;"
-        onmouseover="this.style.background='rgba(248,113,113,0.16)';this.style.borderColor='rgba(248,113,113,0.5)'"
-        onmouseout="this.style.background='rgba(248,113,113,0.08)';this.style.borderColor='rgba(248,113,113,0.25)'">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="8" y1="13" x2="16" y2="13"/>
-          <line x1="8" y1="17" x2="13" y2="17"/>
-        </svg>
-        <span id="btn-pdf-label">Generar Informe PDF</span>
-      </button>
+      <!-- Estadísticas, Ver Deuda Mensual y Generar PDF se movieron al menú "Reportes" de arriba -->
+      <span style="font-size:.7rem;color:var(--muted);font-style:italic;white-space:nowrap;">Acciones y reportes arriba ↗</span>
     </div>
   </header>
 
@@ -3505,6 +3503,21 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         alert('Error: ' + (e.message || e));
       }
     }
+
+    // ── Menús desplegables de la barra de acciones ──
+    function toggleDd(btn) {
+      var dd = btn.closest('.dd');
+      if (!dd) return;
+      var abrir = !dd.classList.contains('open');
+      document.querySelectorAll('.dd.open').forEach(function (d) { d.classList.remove('open'); });
+      if (abrir) dd.classList.add('open');
+    }
+    function closeDd() {
+      document.querySelectorAll('.dd.open').forEach(function (d) { d.classList.remove('open'); });
+    }
+    document.addEventListener('click', function (e) {
+      if (e.target && e.target.closest && !e.target.closest('.dd')) closeDd();
+    });
 
     verificarSesion();
 
