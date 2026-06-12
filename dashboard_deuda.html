@@ -1145,18 +1145,27 @@
 
     <!-- Compromisos de Recuperación -->
     <div class="compromisos-section">
-      <div class="section-title">Compromisos de Recuperación</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div class="section-title" style="margin:0;">Compromisos de Recuperación <span style="color:var(--muted);font-weight:400;font-size:.78rem;">· vigentes</span></div>
+        <button id="comp-descargar" onclick="descargarCompromisosExcel()" title="Descargar historial completo en Excel"
+          style="display:none;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 13px;font-size:.7rem;font-weight:600;color:var(--text);font-family:inherit;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;"
+          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v6M3.5 5.5 6 8l2.5-2.5M2.5 10h7"/></svg>
+          Descargar Excel
+        </button>
+      </div>
       <div id="compromisos-container">
         <div class="comp-empty" id="compromisos-empty">Sin compromisos registrados. Usa el botón "Compromisos de Recuperación" para agregar.</div>
         <table class="compromisos-table" id="compromisos-tabla" style="display:none;">
           <thead>
             <tr>
-              <th>Arrendatario</th>
+              <th>Operador</th>
               <th>Unidad</th>
               <th class="r">Deuda Total</th>
               <th class="r">Monto Comprometido</th>
-              <th>Acción</th>
-              <th>Fecha</th>
+              <th>Acciones</th>
+              <th>Fecha límite</th>
+              <th>Registrado</th>
               <th>Comentario</th>
               <th></th>
             </tr>
@@ -2414,6 +2423,34 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         const logoEl = document.querySelector('.header-logo img');
         const logoSrc = logoEl ? logoEl.src : '';
 
+        // ── Tabla de compromisos de recuperación vigentes ──
+        const _accLabelPDF = { C:'Cobro directo', W:'WhatsApp', LL:'Llamada' };
+        const _compVigPDF = COMPROMISOS.filter(compromisoVigente)
+          .sort((a,b) => new Date(b.registradoEn) - new Date(a.registradoEn));
+        let compromisosHTML = '';
+        if (_compVigPDF.length) {
+          const filasComp = _compVigPDF.map(c => {
+            const acc = (c.acciones||[]).map(a => _accLabelPDF[a] || a).join(', ') || '—';
+            const dl = c.deadline ? new Date(c.deadline+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short',year:'numeric'}) : '—';
+            return '<tr>'
+              + '<td style="text-align:left;">' + escHtml(c.operador||'') + '</td>'
+              + '<td style="text-align:left;">' + escHtml(c.unidad||'') + '</td>'
+              + '<td style="text-align:right;">$' + fmt(c.deuda||0) + '</td>'
+              + '<td style="text-align:right;">$' + fmt(c.monto||0) + '</td>'
+              + '<td style="text-align:left;">' + escHtml(acc) + '</td>'
+              + '<td style="text-align:right;">' + escHtml(dl) + '</td>'
+              + '<td style="text-align:left;">' + escHtml(c.comentario||'') + '</td>'
+              + '</tr>';
+          }).join('');
+          compromisosHTML = '<div class="sec-tabla">'
+            + '<h2>Compromisos de Recuperación vigentes</h2>'
+            + '<table><thead><tr>'
+            + '<th style="text-align:left;">Operador</th><th style="text-align:left;">Unidad</th>'
+            + '<th>Deuda</th><th>Comprometido</th><th style="text-align:left;">Acciones</th>'
+            + '<th>Fecha límite</th><th style="text-align:left;">Comentario</th>'
+            + '</tr></thead><tbody>' + filasComp + '</tbody></table></div>';
+        }
+
         const htmlInforme = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -2522,6 +2559,8 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       <tfoot><tr><td>TOTAL GENERAL</td><td>$${fmt(Math.round(totalMes))}</td><td>$${fmt(Math.round(totalArrastre))}</td><td>$${fmt(Math.round(totalDeuda))}</td></tr></tfoot>
     </table>
   </div>
+
+  ${compromisosHTML}
 
   <div class="sec">
     <h2>Conclusiones</h2>
@@ -2777,11 +2816,77 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         .replace(/'/g, '&#39;');
     }
 
-    function _loadCompromisos() {
-      try { return JSON.parse(localStorage.getItem('compromisos_elisur') || '[]'); } catch(e) { return []; }
+    // Historial de compromisos en memoria (se carga del servidor tras autenticar).
+    var COMPROMISOS = [];
+
+    async function cargarCompromisos() {
+      try {
+        var r = await fetch('/api/compromisos', { cache: 'no-store' });
+        if (!r.ok) return;
+        var j = await r.json();
+        COMPROMISOS = j.items || [];
+        renderCompromisosSection();
+      } catch (e) { /* sin backend: queda vacío */ }
     }
-    function _saveCompromisos(arr) {
-      localStorage.setItem('compromisos_elisur', JSON.stringify(arr));
+
+    function _hoy0() { var d = new Date(); d.setHours(0,0,0,0); return d; }
+    function compromisoVigente(c) {
+      if (!c.deadline) return true;
+      var p = String(c.deadline).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!p) return true;
+      var dl = new Date(+p[1], +p[2]-1, +p[3]); dl.setHours(0,0,0,0);
+      return dl >= _hoy0();
+    }
+    function keyOperador(unidad, nombre) {
+      return (String(unidad) + '|||' + String(nombre)).toLowerCase();
+    }
+    function operadoresConCompromisoActivo() {
+      var s = {};
+      COMPROMISOS.forEach(function(c) {
+        if (compromisoVigente(c)) s[keyOperador(c.unidad, c.operador)] = true;
+      });
+      return s;
+    }
+
+    // ── Excel de compromisos (cliente con SheetJS) ──
+    function _compromisosAOA() {
+      var ACC = { C:'Cobro directo', W:'WhatsApp', LL:'Llamada' };
+      var head = ['Operador','Unidad','Deuda al comprometer','Monto comprometido','Acciones','Fecha límite','Comentario','Registrado','Estado'];
+      var rows = COMPROMISOS.slice()
+        .sort(function(a,b){ return new Date(b.registradoEn) - new Date(a.registradoEn); })
+        .map(function(c) {
+          return [
+            c.operador||'', c.unidad||'', Number(c.deuda)||0, Number(c.monto)||0,
+            (c.acciones||[]).map(function(a){ return ACC[a]||a; }).join(', '),
+            c.deadline||'', c.comentario||'',
+            c.registradoEn ? new Date(c.registradoEn).toLocaleString('es-CL') : '',
+            compromisoVigente(c) ? 'Vigente' : 'Vencido'
+          ];
+        });
+      return [head].concat(rows);
+    }
+    function _compromisosWorkbook() {
+      var ws = XLSX.utils.aoa_to_sheet(_compromisosAOA());
+      ws['!cols'] = [{wch:28},{wch:18},{wch:18},{wch:18},{wch:24},{wch:14},{wch:32},{wch:20},{wch:10}];
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Compromisos');
+      return wb;
+    }
+    function descargarCompromisosExcel() {
+      if (typeof XLSX === 'undefined') { alert('No se pudo cargar la librería Excel.'); return; }
+      if (!COMPROMISOS.length) { mostrarAviso('No hay compromisos para exportar', 'info'); return; }
+      XLSX.writeFile(_compromisosWorkbook(), 'Compromisos_Recuperacion.xlsx');
+    }
+    async function subirCompromisosXlsx() {
+      try {
+        if (typeof XLSX === 'undefined') return;
+        var out = XLSX.write(_compromisosWorkbook(), { bookType: 'xlsx', type: 'array' });
+        await fetch('/api/compromisos-xlsx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: out
+        });
+      } catch (e) { console.warn('No se pudo subir el xlsx de compromisos:', e); }
     }
 
     function abrirModalCompromisos() {
@@ -2804,20 +2909,23 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
 
     function renderModalCompromisos() {
       var morosos = filteredMorosos();
-      const saved = _loadCompromisos();
-      const byKey = {};
-      saved.forEach(function(c) { byKey[c.key] = c; });
+      var activos = operadoresConCompromisoActivo();
+      var elegibles = morosos.filter(function(m) { return !activos[keyOperador(m.unidad, m.nombre)]; });
 
       var tbody = document.getElementById('compromisos-modal-tbody');
       if (!morosos.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Cargue un archivo Excel para ver los arrendatarios morosos.</td></tr>';
         return;
       }
+      if (!elegibles.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Todos los morosos ya tienen un compromiso vigente.</td></tr>';
+        return;
+      }
 
+      var ACCIONES_MAP = { C: 'Cobro directo', W: 'WhatsApp', LL: 'Llamada' };
       var rows = [];
-      morosos.forEach(function(m) {
+      elegibles.forEach(function(m) {
         var rawKey = m.unidad + '|||' + m.nombre;
-        var ex = byKey[rawKey] || {};
 
         var tr = document.createElement('tr');
         tr.setAttribute('data-key', rawKey);
@@ -2840,44 +2948,40 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         inputMonto.type = 'text';
         inputMonto.placeholder = '$0';
         inputMonto.setAttribute('data-field', 'monto');
-        inputMonto.value = ex.monto ? fmtMontoInput(ex.monto) : '';
         inputMonto.style.width = '110px';
         inputMonto.addEventListener('input', function() {
           var raw = this.value.replace(/\./g, '').replace(/[^0-9]/g, '');
           var pos = this.selectionStart;
           var prevLen = this.value.length;
           this.value = raw ? Number(raw).toLocaleString('es-CL') : '';
-          // Ajustar cursor
           var diff = this.value.length - prevLen;
           this.setSelectionRange(pos + diff, pos + diff);
         });
         tdMonto.appendChild(inputMonto);
 
+        // Acciones: 1, 2 o las 3 (casillas)
         var tdAccion = document.createElement('td');
-        var sel = document.createElement('select');
-        sel.className = 'comp-select';
-        sel.setAttribute('data-field', 'accion');
-        var optBlank = document.createElement('option');
-        optBlank.value = '';
-        optBlank.textContent = '—';
-        sel.appendChild(optBlank);
-        var ACCIONES_MAP = { C: 'Cobro directo', W: 'WhatsApp', LL: 'Llamada' };
+        tdAccion.style.cssText = 'white-space:nowrap;';
         ['C','W','LL'].forEach(function(a) {
-          var opt = document.createElement('option');
-          opt.value = a;
-          opt.textContent = a + ' — ' + ACCIONES_MAP[a];
-          if (ex.accion === a) opt.selected = true;
-          sel.appendChild(opt);
+          var lbl = document.createElement('label');
+          lbl.style.cssText = 'display:inline-flex;align-items:center;gap:3px;margin-right:9px;font-size:.74rem;cursor:pointer;';
+          lbl.title = ACCIONES_MAP[a];
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = a;
+          cb.setAttribute('data-field', 'accion');
+          cb.style.cssText = 'width:14px;height:14px;cursor:pointer;accent-color:var(--accent);';
+          lbl.appendChild(cb);
+          lbl.appendChild(document.createTextNode(a));
+          tdAccion.appendChild(lbl);
         });
-        tdAccion.appendChild(sel);
 
         var tdFecha = document.createElement('td');
         var inputFecha = document.createElement('input');
         inputFecha.className = 'comp-input';
         inputFecha.type = 'date';
         inputFecha.setAttribute('data-field', 'fecha');
-        inputFecha.value = ex.fecha || '';
-        inputFecha.style.width = '130px';
+        inputFecha.style.width = '140px';
         tdFecha.appendChild(inputFecha);
 
         var tdComentario = document.createElement('td');
@@ -2886,7 +2990,6 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         inputComentario.type = 'text';
         inputComentario.placeholder = 'Comentario…';
         inputComentario.setAttribute('data-field', 'comentario');
-        inputComentario.value = ex.comentario || '';
         tdComentario.appendChild(inputComentario);
 
         tr.appendChild(tdNombre);
@@ -2903,64 +3006,108 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       rows.forEach(function(tr) { tbody.appendChild(tr); });
     }
 
-    function guardarCompromisos() {
-      const morosos = filteredMorosos();
-      const byNombre = {};
-      morosos.forEach(function(m) { byNombre[m.unidad + '|||' + m.nombre] = m; });
+    async function guardarCompromisos() {
+      var morosos = filteredMorosos();
+      var byKey = {};
+      morosos.forEach(function(m) { byKey[m.unidad + '|||' + m.nombre] = m; });
 
-      const rows = document.querySelectorAll('#compromisos-modal-tbody tr');
-      const result = [];
+      var rows = document.querySelectorAll('#compromisos-modal-tbody tr');
+      var nuevos = [];
       rows.forEach(function(tr) {
-        const key = tr.getAttribute('data-key');
+        var key = tr.getAttribute('data-key');
         if (!key) return;
-        const monto    = (tr.querySelector('[data-field="monto"]') || {}).value || '';
-        const accion   = (tr.querySelector('[data-field="accion"]') || {}).value || '';
-        const fecha    = (tr.querySelector('[data-field="fecha"]') || {}).value || '';
-        const comentario = (tr.querySelector('[data-field="comentario"]') || {}).value || '';
-        if (monto.trim() || accion || fecha || comentario.trim()) {
-          const m = byNombre[key] || {};
-          result.push({ key, nombre: m.nombre||key, unidad: m.unidad||'', deuda: m.deuda||0,
-            monto: monto.trim(), accion, fecha, comentario: comentario.trim() });
+        var montoRaw = (tr.querySelector('[data-field="monto"]') || {}).value || '';
+        var monto = Number(montoRaw.replace(/\./g, '').replace(/[^0-9]/g, '')) || 0;
+        var acciones = Array.prototype.map.call(
+          tr.querySelectorAll('[data-field="accion"]:checked'),
+          function(cb) { return cb.value; }
+        );
+        var fecha = (tr.querySelector('[data-field="fecha"]') || {}).value || '';
+        var comentario = ((tr.querySelector('[data-field="comentario"]') || {}).value || '').trim();
+        if (monto || acciones.length || fecha || comentario) {
+          var m = byKey[key] || {};
+          nuevos.push({ operador: m.nombre || key, unidad: m.unidad || '', deuda: m.deuda || 0,
+            monto: monto, acciones: acciones, deadline: fecha, comentario: comentario });
         }
       });
-      _saveCompromisos(result);
-      renderCompromisosSection();
-      cerrarModalCompromisos();
+
+      if (!nuevos.length) { cerrarModalCompromisos(); return; }
+      mostrarAviso('Guardando compromisos…', 'info');
+      try {
+        var r = await fetch('/api/compromisos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ compromisos: nuevos })
+        });
+        if (r.status === 401) { mostrarLogin(); return; }
+        if (!r.ok) {
+          var j = await r.json().catch(function() { return {}; });
+          mostrarAviso('⚠ No se pudo guardar: ' + (j.error || ('HTTP ' + r.status)), 'err');
+          return;
+        }
+        var data = await r.json();
+        COMPROMISOS = data.items || [];
+        renderCompromisosSection();
+        cerrarModalCompromisos();
+        mostrarAviso('✓ Compromisos guardados', 'ok');
+        subirCompromisosXlsx();
+      } catch (e) {
+        mostrarAviso('⚠ Error de red: ' + (e.message || e), 'err');
+      }
     }
 
-    function eliminarCompromiso(key) {
-      const arr = _loadCompromisos().filter(function(c) { return c.key !== key; });
-      _saveCompromisos(arr);
-      renderCompromisosSection();
+    async function eliminarCompromiso(id) {
+      if (!id) return;
+      try {
+        var r = await fetch('/api/compromisos?id=' + encodeURIComponent(id), { method: 'DELETE' });
+        if (r.status === 401) { mostrarLogin(); return; }
+        if (!r.ok) { mostrarAviso('⚠ No se pudo eliminar', 'err'); return; }
+        var data = await r.json();
+        COMPROMISOS = data.items || [];
+        renderCompromisosSection();
+        subirCompromisosXlsx();
+      } catch (e) { mostrarAviso('⚠ Error de red al eliminar', 'err'); }
     }
 
     function renderCompromisosSection() {
-      const arr = _loadCompromisos();
-      const empty = document.getElementById('compromisos-empty');
-      const tabla = document.getElementById('compromisos-tabla');
-      const tbody = document.getElementById('compromisos-tbody');
+      var _lista = (typeof COMPROMISOS !== 'undefined' && COMPROMISOS) ? COMPROMISOS : [];
+      var vigentes = _lista.filter(compromisoVigente)
+        .sort(function(a, b) { return new Date(b.registradoEn) - new Date(a.registradoEn); });
+      var empty = document.getElementById('compromisos-empty');
+      var tabla = document.getElementById('compromisos-tabla');
+      var tbody = document.getElementById('compromisos-tbody');
       if (!empty || !tabla || !tbody) return;
-      if (!arr.length) {
+
+      var dl = document.getElementById('comp-descargar');
+      if (dl) dl.style.display = _lista.length ? 'inline-flex' : 'none';
+
+      if (!vigentes.length) {
         empty.style.display = '';
+        empty.textContent = _lista.length
+          ? 'No hay compromisos vigentes (todos vencieron). Descarga el Excel para ver el historial completo.'
+          : 'Sin compromisos registrados. Usa el botón "Compromisos de Recuperación" para agregar.';
         tabla.style.display = 'none';
         return;
       }
       empty.style.display = 'none';
       tabla.style.display = '';
-      const BADGE = { C:'comp-badge-C', W:'comp-badge-W', LL:'comp-badge-LL' };
-      tbody.innerHTML = arr.map(function(c) {
-        const badgeCls = BADGE[c.accion] || '';
-        const accionLabel = c.accion ? ('<span class="comp-badge ' + badgeCls + '">' + escHtml(c.accion) + '</span>') : '—';
-        const fechaFmt = c.fecha ? new Date(c.fecha + 'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short',year:'numeric'}) : '—';
-        return '<tr data-key="' + escHtml(c.key) + '">'
-          + '<td><strong>' + escHtml(c.nombre) + '</strong></td>'
+      var BADGE = { C:'comp-badge-C', W:'comp-badge-W', LL:'comp-badge-LL' };
+      tbody.innerHTML = vigentes.map(function(c) {
+        var acc = (c.acciones || []).map(function(a) {
+          return '<span class="comp-badge ' + (BADGE[a] || '') + '">' + escHtml(a) + '</span>';
+        }).join(' ') || '—';
+        var deadFmt = c.deadline ? new Date(c.deadline + 'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short',year:'numeric'}) : '—';
+        var regFmt = c.registradoEn ? new Date(c.registradoEn).toLocaleString('es-CL') : '—';
+        return '<tr data-id="' + escHtml(c.id) + '">'
+          + '<td><strong>' + escHtml(c.operador) + '</strong></td>'
           + '<td style="font-size:.72rem;color:var(--muted);">' + escHtml(c.unidad) + '</td>'
           + '<td class="r" style="color:var(--danger);font-weight:600;">$' + fmt(c.deuda) + '</td>'
-          + '<td class="r" style="color:var(--accent);font-weight:700;">' + (c.monto ? '$'+escHtml(c.monto) : '—') + '</td>'
-          + '<td>' + accionLabel + '</td>'
-          + '<td style="font-size:.78rem;">' + escHtml(fechaFmt) + '</td>'
+          + '<td class="r" style="color:var(--accent);font-weight:700;">' + (c.monto ? '$'+fmt(c.monto) : '—') + '</td>'
+          + '<td>' + acc + '</td>'
+          + '<td style="font-size:.78rem;">' + escHtml(deadFmt) + '</td>'
+          + '<td style="font-size:.72rem;color:var(--muted);">' + escHtml(regFmt) + '</td>'
           + '<td style="color:var(--muted);font-size:.78rem;">' + escHtml(c.comentario||'—') + '</td>'
-          + '<td><button class="comp-del" onclick="eliminarCompromiso(this.closest(\'tr\').getAttribute(\'data-key\'))" title="Eliminar">✕</button></td>'
+          + '<td><button class="comp-del" onclick="eliminarCompromiso(this.closest(\'tr\').getAttribute(\'data-id\'))" title="Eliminar">✕</button></td>'
           + '</tr>';
       }).join('');
     }
@@ -3129,6 +3276,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         const r = await fetch('/api/list', { cache: 'no-store' });
         if (r.status === 401) { mostrarLogin(); return; }
         ocultarLogin();
+        cargarCompromisos();
       } catch (e) {
         // Sin backend (ej. abierto como archivo local): no bloquear el uso local.
         ocultarLogin();
@@ -3149,6 +3297,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         if (r.ok) {
           ocultarLogin();
           var i = document.getElementById('auth-pass'); if (i) i.value = '';
+          cargarCompromisos();
         } else {
           const j = await r.json().catch(() => ({}));
           if (err) {
@@ -3301,7 +3450,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       <div class="modal-header">
         <div>
           <h2>Compromisos de Recuperación</h2>
-          <p id="compromisos-modal-subtitle">Registra acciones y montos comprometidos por arrendatario moroso</p>
+          <p id="compromisos-modal-subtitle">Marca 1, 2 o 3 acciones, el monto (total o parcial) y la fecha límite. Solo aparecen operadores sin compromiso vigente.</p>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="comp-btn-save" onclick="guardarCompromisos()">
@@ -3317,12 +3466,12 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         <table class="comp-modal-table">
           <thead>
             <tr>
-              <th>Arrendatario</th>
+              <th>Operador</th>
               <th>Unidad</th>
               <th>Deuda Total</th>
               <th>Monto a Recuperar</th>
-              <th>Acción</th>
-              <th>Fecha</th>
+              <th>Acciones</th>
+              <th>Fecha límite</th>
               <th>Comentario</th>
             </tr>
           </thead>
