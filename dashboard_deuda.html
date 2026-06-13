@@ -876,6 +876,56 @@
       }
     }
 
+    /* ── Móvil (teléfonos en vertical) ──
+       Solo aplica a ≤600px; la vista de escritorio (>900px) no se toca.
+       Va después del bloque de 900px para ganar en la cascada donde se solapan. */
+    @media (max-width: 600px) {
+      /* Backstop anti-scroll horizontal. Las tablas anchas siguen scrolleando
+         dentro de sus propios contenedores (overflow-x:auto), no en el body. */
+      body { overflow-x: hidden; }
+
+      .main { padding: 12px; gap: 18px; }
+      header { padding: 12px; }
+
+      /* Header: el logo/título y los botones de acción se apilan en vez de desbordar */
+      .header-top { flex-wrap: wrap; gap: 12px; }
+      .header-left { gap: 12px; min-width: 0; }
+      .header-title h1 { font-size: 1.15rem; }
+      .header-title p { font-size: .66rem; }
+
+      .header-right { width: 100%; flex-wrap: wrap; }
+      .header-right .dd:first-child { flex: 1 1 100%; }
+      .header-right .upload-zone { width: 100%; }
+      .header-right .upload-zone > .upload-btn:first-child { flex: 1; justify-content: center; }
+      .header-right > button { flex: 1 1 100%; justify-content: center; }
+
+      /* Filtros (Empresa / Unidad / Reportes): uno por línea y a todo el ancho */
+      .header-bottom { gap: 10px; }
+      .filter-group { flex: 1 1 100%; flex-wrap: wrap; }
+      .filter-group select { flex: 1 1 auto; width: 100%; min-width: 0; }
+      .filter-spacer { display: none; }
+      .header-bottom > .dd { flex: 1 1 100%; }
+      .header-bottom > .dd > button { width: 100%; justify-content: center; }
+
+      /* KPIs en una sola columna: números grandes legibles, sin recortes */
+      .kpi-row, .cards-row { grid-template-columns: 1fr; }
+      .kpi { padding: 16px 18px; }
+      .kpi-value { font-size: 1.5rem; }
+
+      /* Donuts: anillo un poco menor para dar aire a la leyenda */
+      .ring-section { gap: 14px; }
+      .ring-container { width: 128px; height: 128px; }
+
+      /* Tabla de compromisos (9 columnas): scroll horizontal contenido */
+      #compromisos-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .compromisos-table { min-width: 640px; }
+
+      /* Modales: aprovechar el ancho de la pantalla */
+      .modal-overlay { padding: 14px 8px; }
+      .modal-header, .modal-footer { padding-left: 16px; padding-right: 16px; }
+      .modal-body { padding-left: 14px; padding-right: 14px; }
+    }
+
     /* Spinner del historial de cargas */
     @keyframes hist-spin { to { transform: rotate(360deg); } }
     .hist-spinner { display:inline-block; width:11px; height:11px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation: hist-spin .6s linear infinite; }
