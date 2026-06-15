@@ -2280,14 +2280,16 @@
       const total = conceptos.reduce((a, c) => a + c.deuda, 0);
       const CONCEPT_COLORS = ['#ec4899','#8b5cf6','#06b6d4','#f0a500','#3b82f6','#34d399','#f87171','#64748b','#f97316','#a78bfa','#fb923c','#22d3ee','#e879f9'];
 
-      document.getElementById('conceptomes-body-rows').innerHTML = conceptos.map((c, i) => {
+      const tbodyC = document.getElementById('conceptomes-body-rows');
+      tbodyC.innerHTML = conceptos.map((c, i) => {
         const pct = total > 0 ? (c.deuda / total * 100) : 0;
         const color = CONCEPT_COLORS[i % CONCEPT_COLORS.length];
-        return `<tr>
+        return `<tr class="concepto-row" data-pkey="${escHtml(pKey)}" data-concepto="${escHtml(c.concepto)}" style="cursor:pointer;" title="Clic para ver los documentos">
           <td>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
               <strong>${c.concepto}</strong>
+              <span style="color:var(--muted);font-size:.85rem;line-height:1;">›</span>
             </div>
             <div style="margin-top:4px;height:3px;background:var(--surface2);border-radius:3px;overflow:hidden;">
               <div style="width:${Math.abs(pct).toFixed(1)}%;height:100%;background:${color};border-radius:3px;"></div>
@@ -2298,6 +2300,7 @@
           <td class="r" style="color:var(--muted);font-size:.71rem;">${Math.abs(pct).toFixed(1)}%</td>
         </tr>`;
       }).join('');
+      tbodyC.onclick = _conceptoRowClick(false);
 
       document.getElementById('conceptomes-modal-total').textContent = '$' + fmt(total);
       document.getElementById('conceptomes-modal-count').textContent = `${conceptos.length} concepto${conceptos.length !== 1 ? 's' : ''}`;
@@ -2856,14 +2859,16 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       const total = conceptos.reduce((a, c) => a + c.deuda, 0);
       const CONCEPT_COLORS = ['#ec4899','#8b5cf6','#06b6d4','#f0a500','#3b82f6','#34d399','#f87171','#64748b','#f97316','#a78bfa','#fb923c','#22d3ee','#e879f9'];
 
-      document.getElementById('conceptomes-body-rows').innerHTML = conceptos.map((c, i) => {
+      const tbodyC = document.getElementById('conceptomes-body-rows');
+      tbodyC.innerHTML = conceptos.map((c, i) => {
         const pct = total > 0 ? (c.deuda / total * 100) : 0;
         const color = CONCEPT_COLORS[i % CONCEPT_COLORS.length];
-        return `<tr>
+        return `<tr class="concepto-row" data-pkey="${escHtml(pKey)}" data-concepto="${escHtml(c.concepto)}" style="cursor:pointer;" title="Clic para ver los documentos">
           <td>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
               <strong>${c.concepto}</strong>
+              <span style="color:var(--muted);font-size:.85rem;line-height:1;">›</span>
             </div>
             <div style="margin-top:4px;height:3px;background:var(--surface2);border-radius:3px;overflow:hidden;">
               <div style="width:${pct.toFixed(1)}%;height:100%;background:${color};border-radius:3px;"></div>
@@ -2874,6 +2879,7 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
           <td class="r" style="color:var(--muted);font-size:.71rem;">${pct.toFixed(1)}%</td>
         </tr>`;
       }).join('');
+      tbodyC.onclick = _conceptoRowClick(true);
 
       document.getElementById('conceptomes-modal-total').textContent = '$' + fmt(total);
       document.getElementById('conceptomes-modal-count').textContent = `${conceptos.length} concepto${conceptos.length !== 1 ? 's' : ''}`;
@@ -2886,8 +2892,97 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       if (e.target === document.getElementById('modalConceptoMesOverlay')) cerrarConceptoMes();
     }
 
+    // ── Tercer nivel: documentos individuales de un concepto ──────────────────
+    // Handler delegado para las filas de concepto (soloMes distingue Deuda Vigente vs mes en curso)
+    function _conceptoRowClick(soloMes) {
+      return function(ev) {
+        var tr = ev.target.closest('tr.concepto-row');
+        if (!tr) return;
+        verRegistrosConcepto(tr.getAttribute('data-pkey'), tr.getAttribute('data-concepto'), soloMes);
+      };
+    }
+
+    function colorDiasRegistro(dias) {
+      if (dias <= 5)  return 'color:#34d399;font-weight:600;'; // verde
+      if (dias <= 10) return 'color:#f97316;font-weight:600;'; // naranjo
+      return 'color:#f87171;font-weight:600;';                 // rojo
+    }
+
+    // Lista los documentos individuales del arrendatario para un concepto dado.
+    // Recalcula desde las filas filtradas (mismo origen que el desglose por concepto).
+    function verRegistrosConcepto(pKey, concepto, soloMes) {
+      var det = soloMes
+        ? (window._deudaMesDetalle && window._deudaMesDetalle[pKey])
+        : (window._deudaVigenteDetalle && window._deudaVigenteDetalle[pKey]);
+      if (!det) return;
+
+      var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      var items = [];
+      getFilteredRows().forEach(function(r) {
+        var d = parseFloat(r['Deuda actual']) || 0;
+        if (d === 0) return;
+        if (soloMes && normalizarMes(r['TD Mes']) !== MES_ACTUAL) return;
+        var u = (r['Unidad de Negocio'] || 'Sin Unidad').trim();
+        var nOrig = (r['Nombre Fantasia'] || r['Razón Social'] || 'Desconocido').trim();
+        if (u !== det.unidad) return;
+        if (nOrig.toLowerCase() !== String(det.nombre).toLowerCase()) return;
+        if (normalizarConcepto(r['Concepto']) !== concepto) return;
+        var fv = parseFechaEst(r['Facturado Fecha vencimiento']);
+        items.push({
+          numDoc: r['N°'] || r['Docto.'] || '—',
+          deuda: d,
+          fv: fv,
+          dias: fv ? Math.floor((hoy - fv) / 86400000) : null
+        });
+      });
+
+      // Más vencido primero, luego mayor deuda
+      items.sort(function(a, b) {
+        var da = a.dias == null ? -1e9 : a.dias;
+        var db = b.dias == null ? -1e9 : b.dias;
+        if (db !== da) return db - da;
+        return b.deuda - a.deuda;
+      });
+
+      var total = items.reduce(function(a, c) { return a + c.deuda; }, 0);
+
+      document.getElementById('registros-modal-title').textContent = concepto;
+      document.getElementById('registros-modal-subtitle').textContent =
+        det.nombre + ' · ' + det.unidad + (soloMes ? ' · mes en curso' : '');
+
+      document.getElementById('registros-body-rows').innerHTML = items.map(function(it) {
+        var fvTxt = it.fv ? it.fv.toLocaleDateString('es-CL') : '—';
+        var diasTxt = '—', diasStyle = 'color:var(--muted);';
+        if (it.dias != null) {
+          if (it.dias > 0) { diasTxt = it.dias + 'd vencido'; diasStyle = colorDiasRegistro(it.dias); }
+          else { diasTxt = 'al día'; diasStyle = 'color:#34d399;font-weight:600;'; }
+        }
+        var deudaTxt = it.deuda >= 0 ? '$' + fmt(it.deuda) : '−$' + fmt(Math.abs(it.deuda));
+        var deudaColor = it.deuda >= 0 ? 'var(--danger)' : 'var(--success)';
+        return '<tr>'
+          + '<td><strong>' + escHtml(it.numDoc) + '</strong></td>'
+          + '<td class="r" style="font-size:.72rem;color:var(--muted);">' + fvTxt + '</td>'
+          + '<td class="r" style="font-size:.72rem;' + diasStyle + '">' + diasTxt + '</td>'
+          + '<td class="r" style="color:' + deudaColor + ';font-weight:700;">' + deudaTxt + '</td>'
+          + '</tr>';
+      }).join('');
+
+      document.getElementById('registros-modal-total').textContent = '$' + fmt(total);
+      document.getElementById('registros-modal-count').textContent =
+        items.length + ' documento' + (items.length !== 1 ? 's' : '');
+      document.getElementById('modalRegistrosOverlay').classList.add('open');
+    }
+
+    function cerrarRegistros() {
+      document.getElementById('modalRegistrosOverlay').classList.remove('open');
+    }
+    function cerrarRegistrosOverlay(e) {
+      if (e.target === document.getElementById('modalRegistrosOverlay')) cerrarRegistros();
+    }
+
     window.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+        cerrarRegistros();
         cerrarModal();
         cerrarModalPivot();
         cerrarModalResumen();
@@ -3770,6 +3865,36 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       <div class="modal-footer">
         <span id="conceptomes-modal-count" style="font-size:.72rem;color:var(--muted);"></span>
         <span style="font-size:.72rem;color:var(--muted);margin-left:auto;">Total: <strong id="conceptomes-modal-total">—</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DE DOCUMENTOS (3er nivel: registros de un concepto) -->
+  <div class="modal-overlay" id="modalRegistrosOverlay" onclick="cerrarRegistrosOverlay(event)" style="z-index:1300;">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <div>
+          <h2 id="registros-modal-title">Documentos</h2>
+          <p id="registros-modal-subtitle"></p>
+        </div>
+        <button class="modal-close" onclick="cerrarRegistros()">✕</button>
+      </div>
+      <div class="modal-body">
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th>Documento</th>
+              <th class="r">Vencimiento</th>
+              <th class="r">Estado</th>
+              <th class="r">Deuda</th>
+            </tr>
+          </thead>
+          <tbody id="registros-body-rows"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <span id="registros-modal-count" style="font-size:.72rem;color:var(--muted);"></span>
+        <span style="font-size:.72rem;color:var(--muted);margin-left:auto;">Total: <strong id="registros-modal-total">—</strong></span>
       </div>
     </div>
   </div>
