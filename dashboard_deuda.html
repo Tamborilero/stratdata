@@ -2917,11 +2917,13 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
       if (!det) return;
 
       var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      // MES_ACTUAL es const local en otras funciones; aquí lo calculamos del global VENTANA_MESES
+      var mesActual = soloMes ? VENTANA_MESES[VENTANA_MESES.length - 1] : null;
       var items = [];
       getFilteredRows().forEach(function(r) {
         var d = parseFloat(r['Deuda actual']) || 0;
         if (d === 0) return;
-        if (soloMes && normalizarMes(r['TD Mes']) !== MES_ACTUAL) return;
+        if (soloMes && normalizarMes(r['TD Mes']) !== mesActual) return;
         var u = (r['Unidad de Negocio'] || 'Sin Unidad').trim();
         var nOrig = (r['Nombre Fantasia'] || r['Razón Social'] || 'Desconocido').trim();
         if (u !== det.unidad) return;
