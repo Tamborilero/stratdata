@@ -2936,40 +2936,47 @@ Sin datos cargados. Por favor cargue un archivo Excel primero.</p>
         });
       });
 
+      // El total considera TODOS los movimientos (cargos − abonos) = deuda neta
+      var totalNeto = items.reduce(function(a, c) { return a + c.deuda; }, 0);
+
+      // Solo se MUESTRAN los cargos (deuda > 0). Los abonos (valores negativos:
+      // pagos / notas de crédito) ya están descontados en el total neto, pero no
+      // se listan como documentos.
+      var cargos = items.filter(function(it) { return it.deuda > 0; });
+      var nAbonos = items.length - cargos.length;
+
       // Más vencido primero, luego mayor deuda
-      items.sort(function(a, b) {
+      cargos.sort(function(a, b) {
         var da = a.dias == null ? -1e9 : a.dias;
         var db = b.dias == null ? -1e9 : b.dias;
         if (db !== da) return db - da;
         return b.deuda - a.deuda;
       });
 
-      var total = items.reduce(function(a, c) { return a + c.deuda; }, 0);
-
       document.getElementById('registros-modal-title').textContent = concepto;
       document.getElementById('registros-modal-subtitle').textContent =
         det.nombre + ' · ' + det.unidad + (soloMes ? ' · mes en curso' : '');
 
-      document.getElementById('registros-body-rows').innerHTML = items.map(function(it) {
+      document.getElementById('registros-body-rows').innerHTML = cargos.map(function(it) {
         var fvTxt = it.fv ? it.fv.toLocaleDateString('es-CL') : '—';
         var diasTxt = '—', diasStyle = 'color:var(--muted);';
         if (it.dias != null) {
           if (it.dias > 0) { diasTxt = it.dias + 'd vencido'; diasStyle = colorDiasRegistro(it.dias); }
           else { diasTxt = 'al día'; diasStyle = 'color:#34d399;font-weight:600;'; }
         }
-        var deudaTxt = it.deuda >= 0 ? '$' + fmt(it.deuda) : '−$' + fmt(Math.abs(it.deuda));
-        var deudaColor = it.deuda >= 0 ? 'var(--danger)' : 'var(--success)';
         return '<tr>'
           + '<td><strong>' + escHtml(it.numDoc) + '</strong></td>'
           + '<td class="r" style="font-size:.72rem;color:var(--muted);">' + fvTxt + '</td>'
           + '<td class="r" style="font-size:.72rem;' + diasStyle + '">' + diasTxt + '</td>'
-          + '<td class="r" style="color:' + deudaColor + ';font-weight:700;">' + deudaTxt + '</td>'
+          + '<td class="r" style="color:var(--danger);font-weight:700;">$' + fmt(it.deuda) + '</td>'
           + '</tr>';
       }).join('');
 
-      document.getElementById('registros-modal-total').textContent = '$' + fmt(total);
+      var totalTxt = totalNeto >= 0 ? '$' + fmt(totalNeto) : '−$' + fmt(Math.abs(totalNeto));
+      document.getElementById('registros-modal-total').textContent = totalTxt;
       document.getElementById('registros-modal-count').textContent =
-        items.length + ' documento' + (items.length !== 1 ? 's' : '');
+        cargos.length + ' documento' + (cargos.length !== 1 ? 's' : '')
+        + (nAbonos > 0 ? ' · total neto de ' + nAbonos + ' abono' + (nAbonos !== 1 ? 's' : '') : '');
       document.getElementById('modalRegistrosOverlay').classList.add('open');
     }
 
